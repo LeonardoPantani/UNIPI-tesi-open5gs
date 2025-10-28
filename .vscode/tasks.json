@@ -1,0 +1,231 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compila e avvia Open5GS",
+      "type": "shell",
+      "dependsOrder": "sequence",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "dependsOn": [
+        "Compila Open5GS",
+        "Avvia Open5GS"
+      ],
+      "presentation": {
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compila Open5GS",
+      "type": "shell",
+      "command": "rm -rf ./install/bin && rm -rf ./install/lib && source ./custom-env.sh && meson setup build --prefix=$PWD/install && cd build && ninja -j$(nproc) && ninja install",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "dependsOn": [
+        "Termina Open5GS"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Stato Open5GS",
+      "type": "shell",
+      "command": "bash -c 'output=$(ps aux | grep [o]pen5gs); if [ -z \"$output\" ]; then echo \"Open5GS non attivo\"; else echo \"$output\"; fi'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Open5GS",
+      "type": "shell",
+      "command": "cd build && sudo ninja test",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Termina Open5GS",
+      "type": "shell",
+      "presentation": {
+        "close": true
+      },
+      "command": "sudo pkill -9 -f 'open5gs*'; pkill -f 'npm run dev'; pkill -f 'mongosh'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Avvia Open5GS",
+      "dependsOn": [
+        //"webui",
+        "mongodb"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Avvia tutto Open5GS",
+      "dependsOn": [
+        //"webui",
+        "mongodb",
+        "nrf",
+        "scp",
+        "amf",
+        "smf",
+        "ausf",
+        "udm",
+        "udr",
+        "pcf",
+        "nssf",
+        "bsf",
+        "upf"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "webui",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs/webui"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "mongodb",
+      "type": "shell",
+      "command": "mongosh --host 127.0.0.1 --port 27017 open5gs",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+        {
+      "label": "Inizializza rete",
+      "type": "shell",
+      "command": "sudo ./custom-setup_network.sh",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Termina webui",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "lsof -ti :9999 | xargs -r kill -9"],
+      "problemMatcher": [],
+      "hide": true
+    },
+    {
+      "label": "nrf",
+      "type": "shell",
+      "command": "source ./custom-env.sh && ./install/bin/open5gs-nrfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "scp",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-scpd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "amf",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-amfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "smf",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-smfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "ausf",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-ausfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "udm",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-udmd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "udr",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-udrd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "pcf",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-pcfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "nssf",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-nssfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "bsf",
+      "type": "shell",
+      "command": "sleep 2 && source ./custom-env.sh && ./install/bin/open5gs-bsfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    },
+    {
+      "label": "upf",
+      "type": "shell",
+      "command": "source ./custom-env.sh && sudo -E ./install/bin/open5gs-upfd",
+      "options": {
+        "cwd": "/home/leonardo/UNIPI-tesi-open5gs"
+      },
+      "isBackground": true,
+      "hide": true
+    }
+  ]
+}
