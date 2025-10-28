@@ -23,6 +23,31 @@
 #include <netinet/tcp.h>
 #include <nghttp2/nghttp2.h>
 
+// --- starting changed block
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#include <openssl/params.h>
+#include <openssl/evp.h>
+#include <openssl/provider.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/crypto.h>
+#include <openssl/core_names.h>
+#include <openssl/ssl.h>
+#include <openssl/trace.h>
+#include <openssl/tls1.h>
+
+#include <oqs/oqs.h>
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+void ogs_sbi_keylog_callback_leonardo_server(const SSL *ssl, const char *line);
+// --- ending changed block
+
 #define USE_SEND_DATA_WITH_NO_COPY 1
 
 static void server_init(int num_of_session_pool, int num_of_stream_pool);
@@ -198,7 +223,163 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 #endif /* OPENSSL_VERSION_NUMBER >= 0x1010000fL */
 }
 
-static SSL_CTX *create_ssl_ctx(
+// --- starting changed block
+/*
+    ALGORITMI DI KEY EXCHANGE FORNITI DA OQSPROVIDER:
+    
+    frodo640aes p256_frodo640aes x25519_frodo640aes frodo640shake p256_frodo640shake x25519_frodo640shake
+    frodo976aes p384_frodo976aes x448_frodo976aes frodo976shake p384_frodo976shake x448_frodo976shake
+    frodo1344aes p521_frodo1344aes frodo1344shake p521_frodo1344shake
+    mlkem512 p256_mlkem512 x25519_mlkem512 mlkem768 p384_mlkem768 x448_mlkem768
+    X25519MLKEM768 SecP256r1MLKEM768 mlkem1024 p521_mlkem1024 SecP384r1MLKEM1024
+    bikel1 p256_bikel1 x25519_bikel1 bikel3 p384_bikel3 x448_bikel3 bikel5 p521_bikel5
+*/
+
+// Version to use?
+#define OGS_TLS_MIN_VERSION TLS1_3_VERSION
+#define OGS_TLS_MAX_VERSION TLS1_3_VERSION
+// reminder: replace the following strings in the configs:
+// /home/leonardo/UNIPI-tesi-open5gs/install/etc/open5gs/tls2/
+// ... with ...
+// /home/leonardo/UNIPI-tesi-open5gs/install/etc/open5gs/tls/
+// ... and vice versa. Certificates in /tls/ are RSA, the ones in /tls2/ use ML-DSA44
+
+// for TLS 1.2
+#define ALG_TYPE_12     "P-256"
+#define DEF_CIPH_12     "ECDHE-RSA-AES256-GCM-SHA384"
+
+// for TLS 1.3
+#define ALG_TYPE_13     "frodo1344shake"
+#define DEF_CIPH_13     "TLS_AES_256_GCM_SHA384"
+#define SIG_TYPE_13     "mldsa44"
+
+// should TLS connections between NFs stay active?
+#define SESSION_RES     false
+
+static double t_clienthello_recv = 0.0;
+static double t_serverhello_recv = 0.0;
+static double t_server_secret = 0.0;
+
+static inline double now_ms(void) {
+    struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
+    return (double)ts.tv_sec*1000.0 + (double)ts.tv_nsec/1e6;
+}
+
+/* wrapper */
+void ogs_sbi_keylog_callback_leonardo_server(const SSL *ssl, const char *line)
+{
+    if (strstr(line, "SERVER_HANDSHAKE_TRAFFIC_SECRET")) {
+        t_server_secret = now_ms();
+        double dt = t_server_secret - t_clienthello_recv;
+        ogs_info("[TLS-KEM] Encaps time (server): %.3f ms", dt);
+    }
+
+    /* original callback */
+    ogs_sbi_keylog_callback(ssl, line);
+}
+
+static void tls_msg_cb(int write_p, int version, int content_type,
+                       const void *buf, size_t len, SSL *ssl, void *arg)
+{
+    if (content_type != SSL3_RT_HANDSHAKE || !buf || len < 1)
+        return;
+
+    int ht = ((const unsigned char *)buf)[0];
+    double t = now_ms();
+
+    const char *ht_name = NULL;
+
+    switch (ht) {
+        // TLS 1.2 only — server requests a new handshake
+        case SSL3_MT_HELLO_REQUEST:
+            ht_name = "HelloRequest";
+            break;
+
+        // First client message: supported versions, ciphers, extensions
+        case SSL3_MT_CLIENT_HELLO:
+            if (!write_p) t_clienthello_recv = now_ms();
+            ht_name = "ClientHello";
+            break;
+
+        // Server chooses parameters and sends its random/cipher list
+        case SSL3_MT_SERVER_HELLO:
+            if (!write_p) t_serverhello_recv = now_ms();
+            ht_name = "ServerHello";
+            break;
+
+        // Session ticket sent by the server for resumption
+        case SSL3_MT_NEWSESSION_TICKET:
+            ht_name = "NewSessionTicket";
+            break;
+
+        // TLS 1.3 — signals end of 0-RTT early data
+        case SSL3_MT_END_OF_EARLY_DATA:
+            ht_name = "EndOfEarlyData";
+            break;
+
+        // TLS 1.3 — encrypted extension data after ServerHello
+        case SSL3_MT_ENCRYPTED_EXTENSIONS:
+            ht_name = "EncryptedExtensions";
+            break;
+
+        // Server (or client) sends its certificate chain
+        case SSL3_MT_CERTIFICATE:
+            ht_name = "Certificate";
+            break;
+
+        // TLS 1.2 — server sends key exchange parameters
+        case SSL3_MT_SERVER_KEY_EXCHANGE:
+            ht_name = "ServerKeyExchange";
+            break;
+
+        // Server requests a client certificate
+        case SSL3_MT_CERTIFICATE_REQUEST:
+            ht_name = "CertificateRequest";
+            break;
+
+        // TLS 1.2 — server indicates end of handshake messages
+        case SSL3_MT_SERVER_DONE:
+            ht_name = "ServerHelloDone";
+            break;
+
+        // Client sends its key exchange material
+        case SSL3_MT_CLIENT_KEY_EXCHANGE:
+            ht_name = "ClientKeyExchange";
+            break;
+
+        // Proves possession of the client’s private key
+        case SSL3_MT_CERTIFICATE_VERIFY:
+            ht_name = "CertificateVerify";
+            break;
+
+        // Both sides send this to confirm handshake completion
+        case SSL3_MT_FINISHED:
+            ht_name = "Finished";
+            break;
+
+        // TLS 1.3 — updates symmetric keys during session
+        case SSL3_MT_KEY_UPDATE:
+            ht_name = "KeyUpdate";
+            break;
+
+        // TLS 1.3 internal synthetic message for transcript hash
+        case SSL3_MT_MESSAGE_HASH:
+            ht_name = "MessageHash";
+            break;
+
+        default:
+            ht_name = "UnknownHandshake";
+            break;
+    }
+
+    ogs_info("[TLS-MSG] %s %s at %.3f ms",
+             write_p ? "sent" : "recv",
+             ht_name,
+             t);
+}
+// --- ending changed block
+
+static SSL_CTX *create_ssl_ctx(OSSL_LIB_CTX *libctx,
         const char *key_file, const char *cert_file,
         const char *sslkeylog_file)
 {
@@ -208,11 +389,18 @@ static SSL_CTX *create_ssl_ctx(
     ogs_assert(key_file);
     ogs_assert(cert_file);
 
-    ssl_ctx = SSL_CTX_new(TLS_server_method());
+    ssl_ctx = SSL_CTX_new_ex(libctx, NULL, TLS_server_method());
     if (!ssl_ctx) {
         ogs_error("Could not create SSL/TLS context: %s", ERR_error_string(ERR_get_error(), NULL));
         return NULL;
     }
+
+    // --- starting changed block
+    #if !SESSION_RES
+        SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
+        SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_OFF);
+    #endif
+    // --- ending changed block
 
     /* Set key log files for each SSL_CTX */
     if (sslkeylog_file) {
@@ -220,7 +408,7 @@ static SSL_CTX *create_ssl_ctx(
         SSL_CTX_set_app_data(ssl_ctx, sslkeylog_file);
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
         /* Set the SSL Key Log callback */
-        SSL_CTX_set_keylog_callback(ssl_ctx, ogs_sbi_keylog_callback);
+        SSL_CTX_set_keylog_callback(ssl_ctx, ogs_sbi_keylog_callback_leonardo_server);
 #endif
     }
 
@@ -243,13 +431,6 @@ static SSL_CTX *create_ssl_ctx(
 
     SSL_CTX_set_options(ssl_ctx, ssl_opts);
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    if (SSL_CTX_set1_curves_list(ssl_ctx, "P-256") != 1) {
-        ogs_error("SSL_CTX_set1_curves_list failed: %s", ERR_error_string(ERR_get_error(), NULL));
-        return NULL;
-    }
-#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
-
     SSL_CTX_set_mode(ssl_ctx, SSL_MODE_AUTO_RETRY);
     SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
 
@@ -258,12 +439,6 @@ static SSL_CTX *create_ssl_ctx(
                 ERR_error_string(ERR_get_error(), NULL));
     }
 
-#define OGS_TLS_MIN_VERSION TLS1_VERSION
-#ifdef TLS1_3_VERSION
-#define OGS_TLS_MAX_VERSION TLS1_3_VERSION
-#else  /* !TLS1_3_VERSION */
-#define OGS_TLS_MAX_VERSION TLS1_2_VERSION
-#endif /* TLS1_3_VERSION */
     if (ssl_ctx_set_proto_versions(
                 ssl_ctx, OGS_TLS_MIN_VERSION, OGS_TLS_MAX_VERSION) != 0) {
         ogs_error("Could not set TLS versions [%d:%d]",
@@ -271,15 +446,46 @@ static SSL_CTX *create_ssl_ctx(
         return NULL;
     }
 
-#define DEFAULT_CIPHER_LIST \
-    "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-" \
-    "AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-" \
-    "POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-" \
-    "AES256-GCM-SHA384"
-    if (SSL_CTX_set_cipher_list(ssl_ctx, DEFAULT_CIPHER_LIST) == 0) {
-        ogs_error("%s", ERR_error_string(ERR_get_error(), NULL));
+    // --- starting changed block
+    #if OGS_TLS_MAX_VERSION <= TLS1_2_VERSION
+        /* TLS 1.2 or lower */
+        if (SSL_CTX_set_cipher_list(ssl_ctx, DEF_CIPH_12) != 1) {
+            ogs_error("[server][1.2] --- SSL_CTX_set_cipher_list failed: %s", ERR_error_string(ERR_get_error(), NULL));
+            return NULL;
+        } else {
+            ogs_info("[server][1.2] --- SSL_CTX_set_cipher_list set to %s.", DEF_CIPH_12);
+        }
+
+        if (SSL_CTX_set1_curves_list(ssl_ctx, ALG_TYPE_12) != 1) {
+            ogs_error("[server][1.2] --- SSL_CTX_set1_curves_list failed: %s", ERR_error_string(ERR_get_error(), NULL));
         return NULL;
-    }
+        } else {
+            ogs_info("[server][1.2] --- SSL_CTX_set1_curves_list set to %s.", ALG_TYPE_12);
+        }
+    #else
+        /* TLS 1.3 or higher */
+        if (SSL_CTX_set_ciphersuites(ssl_ctx, DEF_CIPH_13) != 1) {
+            ogs_error("[server][1.3] --- SSL_CTX_set_ciphersuites failed: %s", ERR_error_string(ERR_get_error(), NULL));
+            return NULL;
+        } else {
+            ogs_info("[server][1.3] --- SSL_CTX_set_ciphersuites set to %s.", DEF_CIPH_13);
+        }
+
+        if (SSL_CTX_set1_curves_list(ssl_ctx, ALG_TYPE_13) != 1) {
+            ogs_error("[server][1.3] --- SSL_CTX_set1_curves_list failed: %s", ERR_error_string(ERR_get_error(), NULL));
+            return NULL;
+        } else {
+            ogs_info("[server][1.3] --- SSL_CTX_set1_curves_list set to %s.", ALG_TYPE_13);
+        }
+
+        if (SSL_CTX_set1_sigalgs_list(ssl_ctx, SIG_TYPE_13) != 1) {
+            ogs_error("[server][1.3] --- SSL_CTX_set1_sigalgs_list failed: %s", ERR_error_string(ERR_get_error(), NULL));
+            return NULL;
+        } else {
+            ogs_info("[server][1.3] --- SSL_CTX_set1_sigalgs_list set to %s.", SIG_TYPE_13);
+        }
+    #endif
+    // --- ending changed block
 
     if (SSL_CTX_use_PrivateKey_file(ssl_ctx, key_file, SSL_FILETYPE_PEM) != 1) {
         ogs_error("Could not read private key file - key_file=%s", key_file);
@@ -322,9 +528,61 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return preverify_ok;
 }
 
+// --- starting changed block
+// OQS_STATUS generate_keypair(ogs_sbi_server_t *server, const char *alg_name);
+
+// OQS_STATUS generate_keypair(ogs_sbi_server_t *server, const char *alg_name) {
+//     OQS_KEM *kem = OQS_KEM_new(alg_name);
+//     if (kem == NULL) {
+//         fprintf(stderr, "ERROR: OQS_KEM_new failed for algorithm %s\n", alg_name);
+//         return OQS_ERROR;
+//     }
+
+//     OQS_STATUS rc = kem->keypair(server->public_key, server->secret_key);
+//     if (rc != OQS_SUCCESS) {
+//         fprintf(stderr, "ERROR: keypair generation failed for %s\n", alg_name);
+//         OQS_MEM_cleanse(server->public_key, kem->length_public_key);
+//         OQS_MEM_cleanse(server->secret_key, kem->length_secret_key);
+//         OQS_KEM_free(kem);
+//         return OQS_ERROR;
+//     }
+
+//     OQS_KEM_free(kem);
+//     return OQS_SUCCESS;
+// }
+// --- ending changed block
+
 static int server_start(ogs_sbi_server_t *server,
         int (*cb)(ogs_sbi_request_t *request, void *data))
 {
+    // --- starting changed block
+    OSSL_PROVIDER *prov = NULL;
+    const char *build = NULL;
+    OSSL_PARAM request[] = {
+        { "buildinfo", OSSL_PARAM_UTF8_PTR, &build, 0, 0 },
+        { NULL, 0, NULL, 0, 0 }
+    };
+
+    OSSL_LIB_CTX *libctx = NULL;
+
+    ogs_info("[server] --- OpenSSL compile-time version: %s", OPENSSL_VERSION_TEXT);
+    ogs_info("[server] --- OpenSSL runtime version: %s", OpenSSL_version(OPENSSL_VERSION));
+
+    if (OSSL_PROVIDER_load(libctx, "default") == NULL) {
+        ogs_error("[server] --- Failed to load default provider: %s", ERR_error_string(ERR_get_error(), NULL));
+    }
+
+    if ((prov = OSSL_PROVIDER_load(libctx, "oqsprovider")) != NULL && OSSL_PROVIDER_get_params(prov, request))
+        ogs_info("[server] --- %s\n", build);
+    else
+        ogs_error("[server] --- Unable to load oqsprovider.");
+
+    // ogs_info("[server] --- starting manual key generation (server_start).");
+    // double t0 = now_ms();
+    // generate_keypair(server, "ML-KEM-1024");
+    // double t1 = now_ms();
+    // ogs_info("[server] --- manual key generation completed in %.3f ms.", (t1-t0));
+    // --- ending changed block
     char buf[OGS_ADDRSTRLEN];
     ogs_sock_t *sock = NULL;
     ogs_sockaddr_t *addr = NULL;
@@ -336,7 +594,7 @@ static int server_start(ogs_sbi_server_t *server,
     /* Create SSL CTX */
     if (server->scheme == OpenAPI_uri_scheme_https) {
 
-        server->ssl_ctx = create_ssl_ctx(
+        server->ssl_ctx = create_ssl_ctx(libctx,
                 server->private_key, server->cert, server->sslkeylog);
         if (!server->ssl_ctx) {
             ogs_error("Cannot create SSL CTX");
@@ -961,7 +1219,15 @@ static void accept_handler(short when, ogs_socket_t fd, void *data)
         int err;
         SSL_set_fd(sbi_sess->ssl, new->fd);
         SSL_set_accept_state(sbi_sess->ssl);
+        // --- starting changed block
+        SSL_set_msg_callback(sbi_sess->ssl, tls_msg_cb);
+        double t0 = now_ms();
+        // --- ending changed block
         err = SSL_accept(sbi_sess->ssl);
+        // --- starting changed block
+        double t1 = now_ms();
+        ogs_info("[TLS] Handshake time (server side): %.3f ms", t1-t0);
+        // --- ending changed block
         if (err <= 0) {
             ogs_error("SSL_accept failed [%s]", ERR_error_string(ERR_get_error(), NULL));
             session_remove(sbi_sess);
@@ -1280,9 +1546,11 @@ static int on_frame_recv(nghttp2_session *session,
 
         session_send(sbi_sess);
 #endif
-        ogs_info("GOAWAY received: last-stream-id=%d",
-                frame->goaway.last_stream_id);
-        ogs_info("error_code=%d", frame->goaway.error_code);
+        // --- starting changed block
+        // ogs_info("GOAWAY received: last-stream-id=%d",
+        //         frame->goaway.last_stream_id);
+        // ogs_info("error_code=%d", frame->goaway.error_code);
+        // --- ending changed block
         break;
     case NGHTTP2_RST_STREAM:
         ogs_info("RST_STREAM received: stream_id=%d", frame->hd.stream_id);
