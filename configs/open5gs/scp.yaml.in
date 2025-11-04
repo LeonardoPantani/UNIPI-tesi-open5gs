@@ -1,7 +1,9 @@
 logger:
   file:
     path: @localstatedir@/log/open5gs/scp.log
-#  level: info   # fatal|error|warn|info(default)|debug|trace
+    level: warn   # fatal|error|warn|info(default)|debug|trace
+    timestamp: true
+
 
 global:
   max:
@@ -9,13 +11,39 @@ global:
 #    peer: 64
 
 scp:
+  default:
+    tls:
+      server:
+        scheme: https
+        private_key: @sysconfdir@/open5gs/tls2/scp.key
+        cert: @sysconfdir@/open5gs/tls2/scp.crt
+        verify_client: true
+        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        sslkeylogfile: @localstatedir@/log/open5gs/tls/scp-server-sslkeylog.log
+      client:
+        scheme: https
+        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        client_private_key: @sysconfdir@/open5gs/tls2/scp.key
+        client_cert: @sysconfdir@/open5gs/tls2/scp.crt
+        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/scp-client-sslkeylog.log
   sbi:
     server:
-      - address: 127.0.0.200
+      - address: scp.localdomain
         port: 7777
     client:
       nrf:
-        - uri: http://127.0.0.10:7777
+        - uri: https://nrf.localdomain:7777
+          interface: scp.localdomain
+  time:
+    nf_instance:
+      heartbeat: 60
+  # sbi:
+  #   server:
+  #     - address: 127.0.0.200
+  #       port: 7777
+  #   client:
+  #     nrf:
+  #       - uri: https://127.0.0.10:7777
 
 ################################################################################
 # SCP Info
@@ -96,21 +124,21 @@ scp:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #
 #  o Indirect Communication by Delegating to Next-SCP
 #  sbi:
 #    client:
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #
 #  o Indirect Communication without Delegation
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      delegated:
 #        scp:
 #          next: no   # Do not delegate to SCP for next-hop
@@ -119,9 +147,9 @@ scp:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      delegated:
 #        scp:
 #          next: yes  # Delegate to SCP for next-hop communications
@@ -130,9 +158,9 @@ scp:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      # No 'delegated' section; defaults to AUTO delegation
 #
 ################################################################################
@@ -143,11 +171,11 @@ scp:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/scp.key
-#        cert: @sysconfdir@/open5gs/tls/scp.crt
+#        private_key: @sysconfdir@/open5gs/tls2/scp.key
+#        cert: @sysconfdir@/open5gs/tls2/scp.crt
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #  sbi:
 #    server:
 #      - address: scp.localdomain
@@ -162,12 +190,12 @@ scp:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/scp.key
-#        cert: @sysconfdir@/open5gs/tls/scp.crt
+#        private_key: @sysconfdir@/open5gs/tls2/scp.key
+#        cert: @sysconfdir@/open5gs/tls2/scp.crt
 #        sslkeylogfile: @localstatedir@/log/open5gs/tls/scp-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/scp-client-sslkeylog.log
 #  sbi:
 #    server:
@@ -181,15 +209,17 @@ scp:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/scp.key
-#        cert: @sysconfdir@/open5gs/tls/scp.crt
+#        private_key: @sysconfdir@/open5gs/tls2/scp.key
+#        cert: @sysconfdir@/open5gs/tls2/scp.crt
 #        verify_client: true
-#        verify_client_cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        sslkeylogfile: @localstatedir@/log/open5gs/tls/scp-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
-#        client_private_key: @sysconfdir@/open5gs/tls/scp.key
-#        client_cert: @sysconfdir@/open5gs/tls/scp.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        client_private_key: @sysconfdir@/open5gs/tls2/scp.key
+#        client_cert: @sysconfdir@/open5gs/tls2/scp.crt
+#        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/scp-client-sslkeylog.log
 #  sbi:
 #    server:
 #      - address: scp.localdomain

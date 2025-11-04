@@ -1,7 +1,9 @@
 logger:
   file:
     path: @localstatedir@/log/open5gs/nrf.log
-#  level: info   # fatal|error|warn|info(default)|debug|trace
+    level: warn   # fatal|error|warn|info(default)|debug|trace
+    timestamp: true
+
 
 global:
   max:
@@ -9,14 +11,36 @@ global:
 #    peer: 64
 
 nrf:
-  serving:  # 5G roaming requires PLMN in NRF
-    - plmn_id:
-        mcc: 999
-        mnc: 70
+  default:
+    tls:
+      server:
+        scheme: https
+        private_key: @sysconfdir@/open5gs/tls2/nrf.key
+        cert: @sysconfdir@/open5gs/tls2/nrf.crt
+        verify_client: true
+        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        sslkeylogfile: @localstatedir@/log/open5gs/tls/nrf-server-sslkeylog.log
+      client:
+        scheme: https
+        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        client_private_key: @sysconfdir@/open5gs/tls2/nrf.key
+        client_cert: @sysconfdir@/open5gs/tls2/nrf.crt
+        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/nrf-client-sslkeylog.log
   sbi:
     server:
-      - address: 127.0.0.10
+      - address: nrf.localdomain
         port: 7777
+  serving:  # 5G roaming requires PLMN in NRF
+    - plmn_id:
+        mcc: 001
+        mnc: 01
+  # sbi:
+  #   server:
+  #     - address: 127.0.0.10
+  #       port: 7777
+  time:
+    nf_instance:
+      heartbeat: 60
 
 ################################################################################
 # SBI Server
@@ -55,11 +79,11 @@ nrf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/nrf.key
-#        cert: @sysconfdir@/open5gs/tls/nrf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/nrf.key
+#        cert: @sysconfdir@/open5gs/tls2/nrf.crt
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #  sbi:
 #    server:
 #      - address: nrf.localdomain
@@ -71,12 +95,12 @@ nrf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/nrf.key
-#        cert: @sysconfdir@/open5gs/tls/nrf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/nrf.key
+#        cert: @sysconfdir@/open5gs/tls2/nrf.crt
 #        sslkeylogfile: @localstatedir@/log/open5gs/tls/nrf-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/nrf-client-sslkeylog.log
 #  sbi:
 #    server:
@@ -87,15 +111,17 @@ nrf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/nrf.key
-#        cert: @sysconfdir@/open5gs/tls/nrf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/nrf.key
+#        cert: @sysconfdir@/open5gs/tls2/nrf.crt
 #        verify_client: true
-#        verify_client_cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        sslkeylogfile: @localstatedir@/log/open5gs/tls/nrf-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
-#        client_private_key: @sysconfdir@/open5gs/tls/nrf.key
-#        client_cert: @sysconfdir@/open5gs/tls/nrf.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        client_private_key: @sysconfdir@/open5gs/tls2/nrf.key
+#        client_cert: @sysconfdir@/open5gs/tls2/nrf.crt
+#        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/nrf-client-sslkeylog.log
 #  sbi:
 #    server:
 #      - address: nrf.localdomain

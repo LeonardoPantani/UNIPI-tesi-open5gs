@@ -1,7 +1,9 @@
 logger:
   file:
     path: @localstatedir@/log/open5gs/nssf.log
-#  level: info   # fatal|error|warn|info(default)|debug|trace
+    level: warn   # fatal|error|warn|info(default)|debug|trace
+    timestamp: true
+
 
 global:
   max:
@@ -9,19 +11,49 @@ global:
 #    peer: 64
 
 nssf:
+  default:
+    tls:
+      server:
+        scheme: https
+        private_key: @sysconfdir@/open5gs/tls2/nssf.key
+        cert: @sysconfdir@/open5gs/tls2/nssf.crt
+        verify_client: true
+        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        sslkeylogfile: @localstatedir@/log/open5gs/tls/nssf-server-sslkeylog.log
+      client:
+        scheme: https
+        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        client_private_key: @sysconfdir@/open5gs/tls2/nssf.key
+        client_cert: @sysconfdir@/open5gs/tls2/nssf.crt
+        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/nssf-client-sslkeylog.log
   sbi:
     server:
-      - address: 127.0.0.14
+      - address: nssf.localdomain
         port: 7777
     client:
-#      nrf:
-#        - uri: http://127.0.0.10:7777
-      scp:
-        - uri: http://127.0.0.200:7777
+      nrf:
+        - uri: https://nrf.localdomain:7777
+          interface: nssf.localdomain
       nsi:
-        - uri: http://127.0.0.10:7777
+        - uri: https://nrf.localdomain:7777
           s_nssai:
             sst: 1
+  time:
+    nf_instance:
+      heartbeat: 60
+#   sbi:
+#     server:
+#       - address: 127.0.0.14
+#         port: 7777
+#     client:
+# #      nrf:
+# #        - uri: https://127.0.0.10:7777
+#       scp:
+#         - uri: https://127.0.0.200:7777
+#       nsi:
+#         - uri: https://127.0.0.10:7777
+#           s_nssai:
+#             sst: 1
 ################################################################################
 # SBI Server
 ################################################################################
@@ -55,24 +87,24 @@ nssf:
 # SBI Client
 ################################################################################
 #  o Network Slice Instance(NSI)
-#   1. NRF[http://::1:7777/nnrf-nfm/v1/nf-instances]
+#   1. NRF[https://::1:7777/nnrf-nfm/v1/nf-instances]
 #      S-NSSAI[SST:1]
-#   2. NRF[http://127.0.0.19:7777/nnrf-nfm/v1/nf-instances]
+#   2. NRF[https://127.0.0.19:7777/nnrf-nfm/v1/nf-instances]
 #      NSSAI[SST:1, SD:000080]
-#   3. NRF[http://127.0.0.10:7777/nnrf-nfm/v1/nf-instances]
+#   3. NRF[https://127.0.0.10:7777/nnrf-nfm/v1/nf-instances]
 #      NSSAI[SST:1, SD:009000]
 #
 #  sbi:
 #    client:
 #      nsi:
-#        - uri: http://[::1]:7777
+#        - uri: https://[::1]:7777
 #          s_nssai:
 #            sst: 1
-#        - uri: http://127.0.0.19:7777
+#        - uri: https://127.0.0.19:7777
 #          s_nssai:
 #            sst: 1
 #            sd: 000080
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #          s_nssai:
 #            sst: 1
 #            sd: 009000
@@ -81,21 +113,21 @@ nssf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #
 #  o Indirect Communication by Delegating to SCP
 #  sbi:
 #    client:
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #
 #  o Indirect Communication without Delegation
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      delegated:
 #        nrf:
 #          nfm: no    # Directly communicate NRF management functions
@@ -107,9 +139,9 @@ nssf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      delegated:
 #        nrf:
 #          nfm: no    # Directly communicate NRF management functions
@@ -121,9 +153,9 @@ nssf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      # No 'delegated' section; defaults to AUTO delegation
 #
 #
@@ -135,11 +167,11 @@ nssf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/nssf.key
-#        cert: @sysconfdir@/open5gs/tls/nssf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/nssf.key
+#        cert: @sysconfdir@/open5gs/tls2/nssf.crt
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #  sbi:
 #    server:
 #      - address: nssf.localdomain
@@ -158,12 +190,12 @@ nssf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/nssf.key
-#        cert: @sysconfdir@/open5gs/tls/nssf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/nssf.key
+#        cert: @sysconfdir@/open5gs/tls2/nssf.crt
 #        sslkeylogfile: @localstatedir@/log/open5gs/tls/nssf-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/nssf-client-sslkeylog.log
 #  sbi:
 #    server:
@@ -181,15 +213,17 @@ nssf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/nssf.key
-#        cert: @sysconfdir@/open5gs/tls/nssf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/nssf.key
+#        cert: @sysconfdir@/open5gs/tls2/nssf.crt
 #        verify_client: true
-#        verify_client_cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        sslkeylogfile: @localstatedir@/log/open5gs/tls/nssf-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
-#        client_private_key: @sysconfdir@/open5gs/tls/nssf.key
-#        client_cert: @sysconfdir@/open5gs/tls/nssf.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        client_private_key: @sysconfdir@/open5gs/tls2/nssf.key
+#        client_cert: @sysconfdir@/open5gs/tls2/nssf.crt
+#        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/nssf-client-sslkeylog.log
 #  sbi:
 #    server:
 #      - address: nssf.localdomain

@@ -1,7 +1,9 @@
 logger:
   file:
     path: @localstatedir@/log/open5gs/smf.log
-#  level: info   # fatal|error|warn|info(default)|debug|trace
+    level: warn   # fatal|error|warn|info(default)|debug|trace
+    timestamp: true
+
 
 global:
   max:
@@ -9,15 +11,41 @@ global:
 #    peer: 64
 
 smf:
+  default:
+    tls:
+      server:
+        scheme: https
+        private_key: @sysconfdir@/open5gs/tls2/smf.key
+        cert: @sysconfdir@/open5gs/tls2/smf.crt
+        verify_client: true
+        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-server-sslkeylog.log
+      client:
+        scheme: https
+        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+        client_private_key: @sysconfdir@/open5gs/tls2/smf.key
+        client_cert: @sysconfdir@/open5gs/tls2/smf.crt
+        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-client-sslkeylog.log
   sbi:
     server:
-      - address: 127.0.0.4
+      - address: smf.localdomain
         port: 7777
     client:
-#      nrf:
-#        - uri: http://127.0.0.10:7777
-      scp:
-        - uri: http://127.0.0.200:7777
+      nrf:
+        - uri: https://nrf.localdomain:7777
+          interface: smf.localdomain
+  time:
+    nf_instance:
+      heartbeat: 60
+#   sbi:
+#     server:
+#       - address: 127.0.0.4
+#         port: 7777
+#     client:
+# #      nrf:
+# #        - uri: https://127.0.0.10:7777
+#       scp:
+#         - uri: https://127.0.0.200:7777
   pfcp:
     server:
       - address: 127.0.0.4
@@ -31,9 +59,9 @@ smf:
     server:
       - address: 127.0.0.4
   metrics:
-    server:
-      - address: 127.0.0.4
-        port: 9090
+    # server:
+    #   - address: 127.0.0.4
+    #     port: 9090
   session:
     - subnet: 10.45.0.0/16
       gateway: 10.45.0.1
@@ -219,21 +247,21 @@ smf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #
 #  o Indirect Communication by Delegating to SCP
 #  sbi:
 #    client:
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #
 #  o Indirect Communication without Delegation
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      delegated:
 #        nrf:
 #          nfm: no    # Directly communicate NRF management functions
@@ -245,9 +273,9 @@ smf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      delegated:
 #        nrf:
 #          nfm: no    # Directly communicate NRF management functions
@@ -259,9 +287,9 @@ smf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: http://127.0.0.10:7777
+#        - uri: https://127.0.0.10:7777
 #      scp:
-#        - uri: http://127.0.0.200:7777
+#        - uri: https://127.0.0.200:7777
 #      # No 'delegated' section; defaults to AUTO delegation
 #
 ################################################################################
@@ -272,11 +300,11 @@ smf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/smf.key
-#        cert: @sysconfdir@/open5gs/tls/smf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/smf.key
+#        cert: @sysconfdir@/open5gs/tls2/smf.crt
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #  sbi:
 #    server:
 #      - address: smf.localdomain
@@ -291,12 +319,12 @@ smf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/smf.key
-#        cert: @sysconfdir@/open5gs/tls/smf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/smf.key
+#        cert: @sysconfdir@/open5gs/tls2/smf.crt
 #        sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
 #        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-client-sslkeylog.log
 #  sbi:
 #    server:
@@ -310,15 +338,17 @@ smf:
 #    tls:
 #      server:
 #        scheme: https
-#        private_key: @sysconfdir@/open5gs/tls/smf.key
-#        cert: @sysconfdir@/open5gs/tls/smf.crt
+#        private_key: @sysconfdir@/open5gs/tls2/smf.key
+#        cert: @sysconfdir@/open5gs/tls2/smf.crt
 #        verify_client: true
-#        verify_client_cacert: @sysconfdir@/open5gs/tls/ca.crt
+#        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-server-sslkeylog.log
 #      client:
 #        scheme: https
-#        cacert: @sysconfdir@/open5gs/tls/ca.crt
-#        client_private_key: @sysconfdir@/open5gs/tls/smf.key
-#        client_cert: @sysconfdir@/open5gs/tls/smf.crt
+#        cacert: @sysconfdir@/open5gs/tls2/ca.crt
+#        client_private_key: @sysconfdir@/open5gs/tls2/smf.key
+#        client_cert: @sysconfdir@/open5gs/tls2/smf.crt
+#        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-client-sslkeylog.log
 #  sbi:
 #    server:
 #      - address: smf.localdomain

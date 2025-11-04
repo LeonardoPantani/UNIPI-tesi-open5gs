@@ -9,7 +9,7 @@
 # Installs everything under ./install/pqc-bundle
 # ============================================
 
-set -euo pipefail
+set -eo pipefail
 
 OPEN5GS_LIBS="gnupg mongodb-org python3-pip python3-setuptools python3-wheel ninja-build build-essential flex bison git cmake libsctp-dev libgnutls28-dev libgcrypt20-dev libssl-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson"
 OPENSSL_LIBS="build-essential perl git zlib1g-dev"
@@ -74,7 +74,7 @@ confirm_and_prepare() {
 
 # ========== PRECHECK: OPEN5GS DEPENDENCIES ==========
 echo
-echo "=== [0/4] Checking Open5GS dependencies (these should be already installed) ==="
+echo "=== [0/8] Checking Open5GS dependencies (these should be already installed) ==="
 
 missing_open5gs=$(check_missing_libs "$OPEN5GS_LIBS")
 
@@ -102,19 +102,21 @@ else
     fi
 fi
 
-echo
-read -rp "> To compile and install Open5GS, the folder $INSTALL_DIR will be created. Is it ok? [y/N]: " ans
-if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
-    echo "[!] Operation cancelled by user."
-    exit 1
+if [ ! -d $INSTALL_DIR ]; then
+    echo
+    read -rp "> To compile and install Open5GS, the folder $INSTALL_DIR will be created. Is it ok? [y/N]: " ans
+    if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
+        echo "[!] Operation cancelled by user."
+        exit 1
+    fi
+    mkdir -p "$INSTALL_DIR" "$SRC_DIR"
 fi
-mkdir -p "$INSTALL_DIR" "$SRC_DIR"
 
 # ========== OPENSSL ==========
 echo
-echo "=== [1/4] OpenSSL $OPENSSL_VER ==="
+echo "=== [1/8] OpenSSL $OPENSSL_VER ==="
 if [ -d "$INSTALL_DIR/openssl" ]; then
-    echo "> OpenSSL already installed, skipping build."
+    echo "> OpenSSL already installed, skipping."
 else
     confirm_and_prepare "We are about to clone, build and install OpenSSL $OPENSSL_VER." "$OPENSSL_LIBS"
 
@@ -131,9 +133,9 @@ fi
 
 # ========== LIBOQS ==========
 echo
-echo "=== [2/4] liboqs $LIBOQS_VER ==="
+echo "=== [2/8] liboqs $LIBOQS_VER ==="
 if [ -d "$INSTALL_DIR/liboqs" ]; then
-    echo "> liboqs already installed, skipping build."
+    echo "> liboqs already installed, skipping."
 else
     confirm_and_prepare "We are about to clone, build and install liboqs $LIBOQS_VER." "$LIBOQS_LIBS"
 
@@ -151,9 +153,9 @@ fi
 
 # ========== OQS PROVIDER ==========
 echo
-echo "=== [3/4] OQS Provider $OQS_VER ==="
+echo "=== [3/8] OQS Provider $OQS_VER ==="
 if [ -d "$INSTALL_DIR/oqs-provider" ]; then
-    echo "[info] OQS Provider already installed, skipping build."
+    echo "> OQS Provider already installed, skipping."
 else
     confirm_and_prepare "We are about to clone, build and install oqs-provider $OQS_VER." "$OQS_LIBS"
 
@@ -174,9 +176,9 @@ fi
 
 # ========== CURL ==========
 echo
-echo "=== [4/4] Curl $CURL_VER ==="
+echo "=== [4/8] Curl $CURL_VER ==="
 if [ -d "$INSTALL_DIR/curl" ]; then
-    echo "[info] Curl already installed, skipping build."
+    echo "> Curl already installed, skipping."
 else
     confirm_and_prepare "We are about to clone, build and install curl $CURL_VER." "$CURL_LIBS"
 
@@ -193,9 +195,101 @@ else
 fi
 
 echo
-echo "=== Build completed successfully ==="
-echo "Libraries inside:     $INSTALL_DIR"
-echo "Lib sources inside:   $SRC_DIR"
+echo "=== Libraries built successfully ==="
+echo "> Libraries inside:     $INSTALL_DIR"
+echo "> Lib sources inside:   $SRC_DIR"
+
+# ========== CONFIGURE gNB CONNECTION ADDRESS ==========
 echo
-echo "To activate the environment, run:"
-echo "  source custom-env.sh"
+echo "=== [5/8] gNB Connection Configuration ==="
+
+# look for files that contain the string
+files_found=($(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true))
+
+if [ "${#files_found[@]}" -eq 0 ]; then
+    echo "> No configuration files with 'ADDRESS_PLACEHOLDER' found, skipping."
+else
+    read -rp "> Enter the IP address the gNB should use to connect to the AMF/UPF (or 'n' to skip): " gnb_addr
+
+    if [[ "$gnb_addr" != "n" && "$gnb_addr" != "N" && -n "$gnb_addr" ]]; then
+        while true; do
+            echo "> You entered: $gnb_addr"
+            read -rp "> This is ok? [y/N]: " confirm
+            if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                for file in "${files_found[@]}"; do
+                    sed -i "s|ADDRESS_PLACEHOLDER|$gnb_addr|g" "$file"
+                done
+                echo "> Configuration updated successfully."
+                break
+            elif [[ "$confirm" == "n" || "$confirm" == "N" ]]; then
+                read -rp "> Enter a new IP address: " gnb_addr
+            else
+                echo "[!] Please answer y or n."
+            fi
+        done
+    else
+        echo "> Skipping gNB address configuration."
+    fi
+fi
+
+# ========== OPEN5GS BUILD (optional) ==========
+echo
+echo "=== [6/8] Building Open5GS ==="
+if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INSTALL_ROOT/lib" ]; then
+    read -rp "> It seems Open5GS is not installed yet. Do you want to build it now? [y/N]: " ans
+    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+        source ./custom-env.sh
+        meson setup build --prefix="$PWD/install"
+        cd build
+        ninja -j"$(nproc)"
+        ninja install
+        cd ..
+        echo "=== Open5GS built successfully ==="
+    else
+        echo "> Skipping Open5GS build. You will have to build Open5GS by yourself! Use the VSCode Task or execute this  commands:"
+        echo "[i] source ./custom-env.sh && meson setup build --prefix=$PWD/install && cd build && ninja -j$(nproc) && ninja install"
+    fi
+else
+    echo "> Open5GS installation already detected, skipping."
+fi
+
+
+# ========== CERTIFICATES (optional) ==========
+echo
+echo "=== [7/8] Generating Custom Certificates ==="
+if [ ! -d "$INSTALL_ROOT/etc/open5gs/tls2" ]; then
+    echo
+    read -rp "> Do you want to generate custom TLS certificates now? [y/N]: " ans
+    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+        if [ -x "./custom-createcerts.sh" ]; then
+            source ./custom-env.sh
+            ./custom-createcerts.sh
+            echo "=== Certificates generated successfully ==="
+        else
+            echo "[!] ./custom-createcerts.sh not found or not executable."
+        fi
+    else
+        echo "> Skipping certificate generation."
+    fi
+else
+    echo "> Custom certificates already created, skipping."
+fi
+
+# ========== NETWORK SETUP (optional) ==========
+echo
+echo "=== [8/8] Network Setup ==="
+read -rp "> Do you want to setup the network (create aliases, enable port forwarding, and add firewall rules)? [y/N]: " ans
+if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+    if [ -x "./custom-setup_network.sh" ]; then
+        ./custom-setup_network.sh
+        echo "=== Network setup completed successfully ==="
+    else
+        echo "[!] ./custom-setup_network.sh not found or not executable."
+    fi
+else
+    echo "> Skipping network setup."
+fi
+
+echo
+echo "Note: on first run, you should add subscribers via the custom-addsubscribers.sh script, otherwise devices will not be accepted by the network."
+echo "( ˶ˆᗜˆ˵ ) Enjoy!"
