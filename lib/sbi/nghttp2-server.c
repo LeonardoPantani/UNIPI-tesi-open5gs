@@ -249,12 +249,12 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 #define DEF_CIPH_12     "ECDHE-RSA-AES256-GCM-SHA384"
 
 // for TLS 1.3
-#define ALG_TYPE_13     "frodo1344shake"
+#define ALG_TYPE_13     "mlkem768"
 #define DEF_CIPH_13     "TLS_AES_256_GCM_SHA384"
 #define SIG_TYPE_13     "mldsa44"
 
 // should TLS connections between NFs stay active?
-#define SESSION_RES     false
+#define SESSION_RES     true
 
 static double t_clienthello_recv = 0.0;
 static double t_serverhello_recv = 0.0;
