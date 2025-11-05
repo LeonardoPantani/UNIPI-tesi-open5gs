@@ -2132,64 +2132,116 @@ bool ogs_sbi_discovery_option_is_matched(
         ogs_sbi_discovery_option_t *discovery_option)
 {
     ogs_sbi_nf_info_t *nf_info = NULL;
+    bool smf_info_checked = false;
+    bool smf_match_found = false;
+    bool need_smf_slice = false;   /* requires both S-NSSAI and DNN */
+    bool need_smf_tai = false;     /* TAI filter present */
+    bool need_smf_any = false;     /* any SMF-specific filter */
+    int i;
 
     ogs_assert(nf_instance);
     ogs_assert(requester_nf_type);
     ogs_assert(discovery_option);
 
+    /* --------------------------------------------------------------
+     * Step 1. Common pre-checks for all NF types
+     * -------------------------------------------------------------- */
     if (discovery_option->target_nf_instance_id &&
-        nf_instance->id && strcmp(nf_instance->id,
-            discovery_option->target_nf_instance_id) != 0) {
+        nf_instance->id &&
+        strcmp(nf_instance->id,
+           discovery_option->target_nf_instance_id) != 0)
         return false;
-    }
 
-    if (discovery_option->num_of_service_names) {
-        if (ogs_sbi_discovery_option_service_names_is_matched(
-                    nf_instance, requester_nf_type, discovery_option) == false)
-            return false;
-    }
+    if (discovery_option->num_of_service_names &&
+        ogs_sbi_discovery_option_service_names_is_matched(
+            nf_instance, requester_nf_type, discovery_option) == false)
+        return false;
 
-    if (discovery_option->num_of_target_plmn_list) {
-        if (ogs_sbi_discovery_option_target_plmn_list_is_matched(
-                    nf_instance, discovery_option) == false)
-            return false;
-    }
+    if (discovery_option->num_of_target_plmn_list &&
+        ogs_sbi_discovery_option_target_plmn_list_is_matched(
+            nf_instance, discovery_option) == false)
+        return false;
 
     if (nf_instance->nf_type == OpenAPI_nf_type_NRF &&
-            ogs_sbi_discovery_option_hnrf_uri_is_matched(
-                nf_instance, discovery_option) == false)
+        ogs_sbi_discovery_option_hnrf_uri_is_matched(
+            nf_instance, discovery_option) == false)
         return false;
 
+    /* Determine which SMF filters are requested */
+    if (nf_instance->nf_type == OpenAPI_nf_type_SMF) {
+        need_smf_slice = (discovery_option->num_of_snssais &&
+                          discovery_option->dnn) ? true : false;
+        need_smf_tai = discovery_option->tai_presence ? true : false;
+
+        /* If more SMF filters are added later, OR them here */
+        need_smf_any = (need_smf_slice || need_smf_tai) ? true : false;
+    }
+
+    /* --------------------------------------------------------------
+     * Step 2. NF-type specific matching
+     * -------------------------------------------------------------- */
     ogs_list_for_each(&nf_instance->nf_info_list, nf_info) {
         if (nf_instance->nf_type != nf_info->nf_type) {
             ogs_error("Invalid NF-Type [%d:%d]",
-                    nf_instance->nf_type, nf_info->nf_type);
+                nf_instance->nf_type, nf_info->nf_type);
             return false;
         }
 
-        switch (nf_info->nf_type) {
-        case OpenAPI_nf_type_AMF:
+        /* --- AMF --- */
+        if (nf_info->nf_type == OpenAPI_nf_type_AMF) {
             if (requester_nf_type == OpenAPI_nf_type_AMF &&
                 discovery_option->guami_presence &&
-                ogs_sbi_check_amf_info_guami(&nf_info->amf,
+                ogs_sbi_check_amf_info_guami(
+                    &nf_info->amf,
                     &discovery_option->guami) == false)
                 return false;
-            break;
-        case OpenAPI_nf_type_SMF:
-            if (discovery_option->num_of_snssais && discovery_option->dnn &&
-                ogs_sbi_check_smf_info_slice(&nf_info->smf,
-                    &discovery_option->snssais[0],
-                    discovery_option->dnn) == false)
-                return false;
-            if (discovery_option->tai_presence &&
-                ogs_sbi_check_smf_info_tai(&nf_info->smf,
-                    &discovery_option->tai) == false)
-                return false;
-            break;
-        default:
-            break;
         }
+
+        /* --- SMF --- */
+        else if (nf_info->nf_type == OpenAPI_nf_type_SMF) {
+            /* Skip expensive checks if no SMF filter is requested */
+            smf_info_checked = true;
+
+            /* Slice (S-NSSAI + DNN) filter */
+            if (need_smf_slice) {
+                bool slice_ok = false;
+                for (i = 0; i < discovery_option->num_of_snssais; i++) {
+                    if (ogs_sbi_check_smf_info_slice(
+                            &nf_info->smf,
+                            &discovery_option->snssais[i],
+                            discovery_option->dnn)) {
+                        slice_ok = true;
+                        break;
+                    }
+                }
+                if (slice_ok == false)
+                    continue; /* this smfInfo does not match slice */
+            }
+
+            /* TAI filter (applied after slice if present) */
+            if (need_smf_tai) {
+                if (ogs_sbi_check_smf_info_tai(
+                        &nf_info->smf,
+                        &discovery_option->tai) == false)
+                    continue; /* this smfInfo does not match TAI */
+            }
+
+            /* If we reached here, all requested filters passed */
+            smf_match_found = true;
+            break; /* OR logic across smfInfo blocks */
+        }
+
+        /* Other NF types: no additional checks here */
     }
+
+    /* --------------------------------------------------------------
+     * Step 3. Final validation for SMF
+     * -------------------------------------------------------------- */
+    if (nf_instance->nf_type == OpenAPI_nf_type_SMF &&
+        smf_info_checked &&
+        need_smf_any &&
+        smf_match_found == false)
+        return false;
 
     return true;
 }
