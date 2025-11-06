@@ -9,3 +9,4 @@ subprojects/usrsctp
 webui/.next
 
 .vscode/settings.json
+.cache

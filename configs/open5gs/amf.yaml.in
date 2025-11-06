@@ -81,7 +81,7 @@ amf:
     t3512:
       value: 540    # 9 minutes * 60 = 540 seconds
     nf_instance:
-      heartbeat: 60
+      heartbeat: 300
 
 ################################################################################
 # SBI Server

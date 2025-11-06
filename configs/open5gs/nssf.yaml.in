@@ -40,7 +40,7 @@ nssf:
             sst: 1
   time:
     nf_instance:
-      heartbeat: 60
+      heartbeat: 600
 #   sbi:
 #     server:
 #       - address: 127.0.0.14

@@ -37,7 +37,7 @@ udr:
           interface: udr.localdomain
   time:
     nf_instance:
-      heartbeat: 60
+      heartbeat: 600
 #   sbi:
 #     server:
 #       - address: 127.0.0.20
