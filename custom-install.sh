@@ -15,7 +15,7 @@ OPEN5GS_LIBS="curl gnupg python3-pip python3-setuptools python3-wheel ninja-buil
 OPENSSL_LIBS="build-essential perl git zlib1g-dev"
 LIBOQS_LIBS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind"
 OQS_LIBS="cmake build-essential git"
-CURL_LIBS="autoconf automake cmake libtool m4 perl"
+CURL_LIBS="autoconf automake cmake libtool m4 perl libpsl-dev"
 
 BASE_DIR="$(pwd)"
 INSTALL_ROOT="$BASE_DIR/install"
@@ -74,7 +74,7 @@ confirm_and_prepare() {
 
 # ========== MONGODB INSTALLATION ==========
 echo
-echo "=== [1/10] Checking MongoDB installation ==="
+echo "=== [1/11] Checking MongoDB installation ==="
 
 if ! command -v mongod &>/dev/null; then
     echo "[!] MongoDB not detected. Installing MongoDB 8.0..."
@@ -99,7 +99,7 @@ fi
 
 # ========== PRECHECK: OPEN5GS DEPENDENCIES ==========
 echo
-echo "=== [2/10] Checking Open5GS dependencies (these should be already installed) ==="
+echo "=== [2/11] Checking Open5GS dependencies (these should be already installed) ==="
 
 missing_open5gs=$(check_missing_libs "$OPEN5GS_LIBS")
 
@@ -139,7 +139,7 @@ fi
 
 # ========== OPENSSL ==========
 echo
-echo "=== [3/10] OpenSSL $OPENSSL_VER ==="
+echo "=== [3/11] OpenSSL $OPENSSL_VER ==="
 if [ -d "$INSTALL_DIR/openssl" ]; then
     echo "> OpenSSL already installed, skipping."
 else
@@ -158,7 +158,7 @@ fi
 
 # ========== LIBOQS ==========
 echo
-echo "=== [4/10] liboqs $LIBOQS_VER ==="
+echo "=== [4/11] liboqs $LIBOQS_VER ==="
 if [ -d "$INSTALL_DIR/liboqs" ]; then
     echo "> liboqs already installed, skipping."
 else
@@ -178,7 +178,7 @@ fi
 
 # ========== OQS PROVIDER ==========
 echo
-echo "=== [5/10] OQS Provider $OQS_VER ==="
+echo "=== [5/11] OQS Provider $OQS_VER ==="
 if [ -d "$INSTALL_DIR/oqs-provider" ]; then
     echo "> OQS Provider already installed, skipping."
 else
@@ -201,11 +201,11 @@ fi
 
 # ========== CURL ==========
 echo
-echo "=== [6/10] Curl $CURL_VER ==="
+echo "=== [6/11] Curl $CURL_VER ==="
 if [ -d "$INSTALL_DIR/curl" ]; then
     echo "> Curl already installed, skipping."
 else
-    confirm_and_prepare "We are about to clone, build and install curl $CURL_VER." "$CURL_LIBS"
+    confirm_and_prepare "We are about to clone, build and install curl $CURL_VER. This version uses the previously installed OpenSSL core." "$CURL_LIBS"
 
     cd "$SRC_DIR"
     if [ ! -d curl ]; then
@@ -226,7 +226,7 @@ echo "> Lib sources inside:   $SRC_DIR"
 
 # ========== CONFIGURE gNB CONNECTION ADDRESS ==========
 echo
-echo "=== [7/10] gNB Connection Configuration ==="
+echo "=== [7/11] gNB Connection Configuration ==="
 
 # look for files that contain the string
 files_found=($(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true))
@@ -259,7 +259,7 @@ fi
 
 # ========== OPEN5GS BUILD (optional) ==========
 echo
-echo "=== [8/10] Building Open5GS ==="
+echo "=== [8/11] Building Open5GS ==="
 if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INSTALL_ROOT/lib" ]; then
     read -rp "> It seems Open5GS is not installed yet. Do you want to build it now? [y/N]: " ans
     if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
@@ -281,7 +281,7 @@ fi
 
 # ========== CERTIFICATES (optional) ==========
 echo
-echo "=== [9/10] Generating Custom Certificates ==="
+echo "=== [9/11] Generating Custom Certificates ==="
 if [ ! -d "$INSTALL_ROOT/etc/open5gs/tls2" ]; then
     echo
     read -rp "> Do you want to generate custom TLS certificates now? [y/N]: " ans
@@ -302,7 +302,7 @@ fi
 
 # ========== NETWORK SETUP (optional) ==========
 echo
-echo "=== [10/10] Network Setup ==="
+echo "=== [10/11] Network Setup ==="
 read -rp "> Do you want to setup the network (create aliases, enable port forwarding, and add firewall rules)? [y/N]: " ans
 if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
     if [ -x "./custom-setup_network.sh" ]; then
@@ -315,6 +315,20 @@ else
     echo "> Skipping network setup."
 fi
 
+# ========== ADD SUBSCRIBERS (optional) ==========
 echo
-echo "Note: on first run, you should add subscribers via the custom-addsubscribers.sh script, otherwise devices will not be accepted by the network."
-echo "( ˶ˆᗜˆ˵ ) Enjoy!"
+echo "=== [11/11] Add Subscribers ==="
+read -rp "> To enable you to test immediately, we can automatically add subscribers to mongoDB for the network with MCC 001 and MNC 01. This is ok? [y/N]: " ans
+if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+    if [ -x "./custom-addsubscribers.sh" ]; then
+        ./custom-addsubscribers.sh
+        echo "=== Subscribers added successfully ==="
+    else
+        echo "[!] ./custom-addsubscribers.sh not found or not executable."
+    fi
+else
+    echo "> Skipping subscriber addition."
+fi
+
+echo
+echo "( ˶ˆᗜˆ˵ ) Build process completed successfully!"
