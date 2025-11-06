@@ -72,16 +72,46 @@ confirm_and_prepare() {
     install_missing_libs "$missing"
 }
 
+
+
 # ========== MONGODB INSTALLATION ==========
 echo
 echo "=== [1/11] Checking MongoDB installation ==="
+
+# Detect OS and version
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    os_id=$ID
+    os_version=${VERSION_ID%%.*}
+else
+    os_id="unknown"
+    os_version="0"
+fi
+
+if [ "$os_id" != "ubuntu" ]; then
+    echo "[!] Warning: this script was tested only on Ubuntu. Your system reports: $os_id."
+else
+    if (( os_version < 20 )); then
+        echo "[!] Unsupported Ubuntu version ($os_version). Minimum supported: 20 (Focal)."
+        exit 1
+    fi
+fi
 
 if ! command -v mongod &>/dev/null; then
     echo "[!] MongoDB not detected. Installing MongoDB 8.0..."
     sudo apt-get update -y
     sudo apt-get install -y curl gnupg
+
+    case $os_version in
+        20) codename="focal" ;;
+        22) codename="jammy" ;;
+        24) codename="noble" ;;
+        26) codename="resolute" ;;
+        *)  codename="jammy" ;;
+    esac
+
     curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu $codename/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
     sudo apt-get update -y
     sudo apt-get install -y mongodb-org
 
@@ -96,6 +126,9 @@ if ! command -v mongod &>/dev/null; then
 else
     echo "> MongoDB already installed, skipping."
 fi
+
+
+
 
 # ========== PRECHECK: OPEN5GS DEPENDENCIES ==========
 echo
@@ -137,6 +170,8 @@ if [ ! -d $INSTALL_DIR ]; then
     mkdir -p "$INSTALL_DIR" "$SRC_DIR"
 fi
 
+
+
 # ========== OPENSSL ==========
 echo
 echo "=== [3/11] OpenSSL $OPENSSL_VER ==="
@@ -155,6 +190,8 @@ else
     make -j"$NPROC"
     make install
 fi
+
+
 
 # ========== LIBOQS ==========
 echo
@@ -175,6 +212,8 @@ else
     ninja
     ninja install
 fi
+
+
 
 # ========== OQS PROVIDER ==========
 echo
@@ -199,6 +238,8 @@ else
     make install
 fi
 
+
+
 # ========== CURL ==========
 echo
 echo "=== [6/11] Curl $CURL_VER ==="
@@ -219,14 +260,18 @@ else
     make install
 fi
 
+cd $BASE_DIR
+
 echo
 echo "=== Libraries built successfully ==="
 echo "> Libraries inside:     $INSTALL_DIR"
 echo "> Lib sources inside:   $SRC_DIR"
 
+
+
 # ========== CONFIGURE gNB CONNECTION ADDRESS ==========
 echo
-echo "=== [7/11] gNB Connection Configuration ==="
+echo "=== [8/11] gNB Connection Configuration ==="
 
 # look for files that contain the string
 files_found=($(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true))
@@ -257,9 +302,11 @@ else
     fi
 fi
 
+
+
 # ========== OPEN5GS BUILD (optional) ==========
 echo
-echo "=== [8/11] Building Open5GS ==="
+echo "=== [7/11] Building Open5GS ==="
 if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INSTALL_ROOT/lib" ]; then
     read -rp "> It seems Open5GS is not installed yet. Do you want to build it now? [y/N]: " ans
     if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
@@ -277,6 +324,7 @@ if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INST
 else
     echo "> Open5GS installation already detected, skipping."
 fi
+
 
 
 # ========== CERTIFICATES (optional) ==========
@@ -300,6 +348,8 @@ else
     echo "> Custom certificates already created, skipping."
 fi
 
+
+
 # ========== NETWORK SETUP (optional) ==========
 echo
 echo "=== [10/11] Network Setup ==="
@@ -314,6 +364,8 @@ if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
 else
     echo "> Skipping network setup."
 fi
+
+
 
 # ========== ADD SUBSCRIBERS (optional) ==========
 echo
