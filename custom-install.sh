@@ -11,7 +11,7 @@
 
 set -eo pipefail
 
-OPEN5GS_LIBS="gnupg mongodb-org python3-pip python3-setuptools python3-wheel ninja-build build-essential flex bison git cmake libsctp-dev libgnutls28-dev libgcrypt20-dev libssl-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson"
+OPEN5GS_LIBS="curl gnupg python3-pip python3-setuptools python3-wheel ninja-build build-essential flex bison git cmake libsctp-dev libgnutls28-dev libgcrypt20-dev libssl-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson"
 OPENSSL_LIBS="build-essential perl git zlib1g-dev"
 LIBOQS_LIBS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind"
 OQS_LIBS="cmake build-essential git"
@@ -72,9 +72,34 @@ confirm_and_prepare() {
     install_missing_libs "$missing"
 }
 
+# ========== MONGODB INSTALLATION ==========
+echo
+echo "=== [1/10] Checking MongoDB installation ==="
+
+if ! command -v mongod &>/dev/null; then
+    echo "[!] MongoDB not detected. Installing MongoDB 8.0..."
+    sudo apt-get update -y
+    sudo apt-get install -y curl gnupg
+    curl -fsSL https://pgp.mongodb.com/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+    sudo apt-get update -y
+    sudo apt-get install -y mongodb-org
+
+    if ! pgrep -x mongod >/dev/null; then
+        echo "> Starting MongoDB service..."
+        sudo systemctl start mongod
+    fi
+
+    echo "> Enabling MongoDB service to start on boot..."
+    sudo systemctl enable mongod
+    echo "=== MongoDB installed and running ==="
+else
+    echo "> MongoDB already installed, skipping."
+fi
+
 # ========== PRECHECK: OPEN5GS DEPENDENCIES ==========
 echo
-echo "=== [0/8] Checking Open5GS dependencies (these should be already installed) ==="
+echo "=== [2/10] Checking Open5GS dependencies (these should be already installed) ==="
 
 missing_open5gs=$(check_missing_libs "$OPEN5GS_LIBS")
 
@@ -114,7 +139,7 @@ fi
 
 # ========== OPENSSL ==========
 echo
-echo "=== [1/8] OpenSSL $OPENSSL_VER ==="
+echo "=== [3/10] OpenSSL $OPENSSL_VER ==="
 if [ -d "$INSTALL_DIR/openssl" ]; then
     echo "> OpenSSL already installed, skipping."
 else
@@ -133,7 +158,7 @@ fi
 
 # ========== LIBOQS ==========
 echo
-echo "=== [2/8] liboqs $LIBOQS_VER ==="
+echo "=== [4/10] liboqs $LIBOQS_VER ==="
 if [ -d "$INSTALL_DIR/liboqs" ]; then
     echo "> liboqs already installed, skipping."
 else
@@ -153,7 +178,7 @@ fi
 
 # ========== OQS PROVIDER ==========
 echo
-echo "=== [3/8] OQS Provider $OQS_VER ==="
+echo "=== [5/10] OQS Provider $OQS_VER ==="
 if [ -d "$INSTALL_DIR/oqs-provider" ]; then
     echo "> OQS Provider already installed, skipping."
 else
@@ -176,7 +201,7 @@ fi
 
 # ========== CURL ==========
 echo
-echo "=== [4/8] Curl $CURL_VER ==="
+echo "=== [6/10] Curl $CURL_VER ==="
 if [ -d "$INSTALL_DIR/curl" ]; then
     echo "> Curl already installed, skipping."
 else
@@ -201,7 +226,7 @@ echo "> Lib sources inside:   $SRC_DIR"
 
 # ========== CONFIGURE gNB CONNECTION ADDRESS ==========
 echo
-echo "=== [5/8] gNB Connection Configuration ==="
+echo "=== [7/10] gNB Connection Configuration ==="
 
 # look for files that contain the string
 files_found=($(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true))
@@ -234,7 +259,7 @@ fi
 
 # ========== OPEN5GS BUILD (optional) ==========
 echo
-echo "=== [6/8] Building Open5GS ==="
+echo "=== [8/10] Building Open5GS ==="
 if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INSTALL_ROOT/lib" ]; then
     read -rp "> It seems Open5GS is not installed yet. Do you want to build it now? [y/N]: " ans
     if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
@@ -256,7 +281,7 @@ fi
 
 # ========== CERTIFICATES (optional) ==========
 echo
-echo "=== [7/8] Generating Custom Certificates ==="
+echo "=== [9/10] Generating Custom Certificates ==="
 if [ ! -d "$INSTALL_ROOT/etc/open5gs/tls2" ]; then
     echo
     read -rp "> Do you want to generate custom TLS certificates now? [y/N]: " ans
@@ -277,7 +302,7 @@ fi
 
 # ========== NETWORK SETUP (optional) ==========
 echo
-echo "=== [8/8] Network Setup ==="
+echo "=== [10/10] Network Setup ==="
 read -rp "> Do you want to setup the network (create aliases, enable port forwarding, and add firewall rules)? [y/N]: " ans
 if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
     if [ -x "./custom-setup_network.sh" ]; then
