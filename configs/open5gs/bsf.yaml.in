@@ -34,9 +34,6 @@ bsf:
       nrf:
         - uri: https://nrf.localdomain:7777
           interface: bsf.localdomain
-  time:
-    nf_instance:
-      heartbeat: 600
 #   sbi:
 #     server:
 #       - address: 127.0.0.15

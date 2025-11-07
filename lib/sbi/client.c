@@ -641,7 +641,7 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userdata)
         }
     #endif
 
-    SSL_CTX_set_msg_callback(ctx, tls_msg_cb);
+    // SSL_CTX_set_msg_callback(ctx, tls_msg_cb); TODO
     // --- ending changed block
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
     /* Set the SSL Key Log callback */

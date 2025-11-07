@@ -34,33 +34,38 @@ smf:
       nrf:
         - uri: https://nrf.localdomain:7777
           interface: smf.localdomain
-  time:
-    nf_instance:
-      heartbeat: 600
+  sbi:
+    server:
+      - address: smf.localdomain
+        port: 7777
+    client:
+      nrf:
+        - uri: https://nrf.localdomain:7777
+          interface: smf.localdomain
 #   sbi:
 #     server:
-#       - address: 127.0.0.4
+#       - address: smf.localdomain
 #         port: 7777
 #     client:
 # #      nrf:
-# #        - uri: https://127.0.0.10:7777
+# #        - uri: https://nrf.localdomain:7777
 #       scp:
-#         - uri: https://127.0.0.200:7777
+#         - uri: https://scp.localdomain:7777
   pfcp:
     server:
-      - address: 127.0.0.4
+      - address: smf.localdomain
     client:
       upf:
-        - address: 127.0.0.7
+        - address: upf.localdomain
   gtpc:
     server:
-      - address: 127.0.0.4
+      - address: smf.localdomain
   gtpu:
     server:
-      - address: 127.0.0.4
+      - address: smf.localdomain
   metrics:
     # server:
-    #   - address: 127.0.0.4
+    #   - address: smf.localdomain
     #     port: 9090
   session:
     - subnet: 10.45.0.0/16
@@ -78,7 +83,7 @@ smf:
 #    - ::1
 #  ctf:
 #    enabled: auto   # auto(default)|yes|no
-  freeDiameter: @sysconfdir@/freeDiameter/smf.conf
+  # freeDiameter: @sysconfdir@/freeDiameter/smf.conf
 
 ################################################################################
 # SMF Info

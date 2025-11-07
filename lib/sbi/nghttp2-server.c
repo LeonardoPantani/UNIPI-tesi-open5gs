@@ -1220,7 +1220,7 @@ static void accept_handler(short when, ogs_socket_t fd, void *data)
         SSL_set_fd(sbi_sess->ssl, new->fd);
         SSL_set_accept_state(sbi_sess->ssl);
         // --- starting changed block
-        SSL_set_msg_callback(sbi_sess->ssl, tls_msg_cb);
+        // SSL_set_msg_callback(sbi_sess->ssl, tls_msg_cb); TODO
         double t0 = now_ms();
         // --- ending changed block
         err = SSL_accept(sbi_sess->ssl);

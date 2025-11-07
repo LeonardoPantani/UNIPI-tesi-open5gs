@@ -38,9 +38,6 @@ nssf:
         - uri: https://nrf.localdomain:7777
           s_nssai:
             sst: 1
-  time:
-    nf_instance:
-      heartbeat: 600
 #   sbi:
 #     server:
 #       - address: 127.0.0.14
