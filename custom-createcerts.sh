@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SIGALG=${1:-mldsa44}
-TLS_DIR="./install/etc/open5gs/tls"
+TLS_DIR="./install/etc/open5gs/tls2"
 NFS=(amf ausf bsf hss mme nrf nssf pcf pcrf scp sepp1 sepp2 sepp3 smf udm udr)
 
 mkdir -p "$TLS_DIR"

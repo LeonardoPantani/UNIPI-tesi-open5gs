@@ -427,7 +427,7 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 // /home/leonardo/UNIPI-tesi-open5gs/install/etc/open5gs/tls2/
 // ... with ...
 // /home/leonardo/UNIPI-tesi-open5gs/install/etc/open5gs/tls/
-// ... and vice versa. Certificates in /tls/ are RSA, the ones in /tls2/ use ML-DSA44
+// ... and vice versa. By default, certificates in /tls/ are RSA, the ones in /tls2/ use ML-DSA44
 
 // for TLS 1.2
 #define ALG_TYPE_12     "P-256"
