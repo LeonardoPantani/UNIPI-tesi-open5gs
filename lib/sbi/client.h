@@ -56,20 +56,20 @@ extern "C" {
         \
         OGS_OBJECT_REF(__pClient); \
         ((__cTX)->client) = (__pClient); \
-        ogs_debug("CLIENT Ref [%d]", (__pClient)->reference_count); \
-        if ((__pClient)->fqdn) { \
+        ogs_debug("CLIENT Ref [%d]", (__pClient)->reference_count); /* --- starting changed block */ \
+        if ((__pClient)->fqdn && 1 == 0) {  \
             ogs_info("Setup NF EndPoint(fqdn) [%s:%d]", \
                     (__pClient)->fqdn, (__pClient)->fqdn_port); \
         } \
-        if ((__pClient)->addr) { \
+        if ((__pClient)->addr && 1 == 0) { \
             ogs_info("Setup NF EndPoint(addr) [%s:%d]", \
                 OGS_ADDR((__pClient)->addr, buf), OGS_PORT((__pClient)->addr)); \
         } \
-        if ((__pClient)->addr6) { \
+        if ((__pClient)->addr6 && 1 == 0) { \
             ogs_info("Setup NF EndPoint(addr6) [%s:%d]", \
                 OGS_ADDR((__pClient)->addr6, buf), \
                 OGS_PORT((__pClient)->addr6)); \
-        } \
+        } /* --- ending changed block */ \
     } while(0)
 
 typedef int (*ogs_sbi_client_cb_f)(

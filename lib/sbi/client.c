@@ -434,12 +434,15 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 #define DEF_CIPH_12     "ECDHE-RSA-AES256-GCM-SHA384"
 
 // for TLS 1.3
-#define ALG_TYPE_13     "mlkem768"
+#define ALG_TYPE_13     "x25519"
 #define DEF_CIPH_13     "TLS_AES_256_GCM_SHA384"
-#define SIG_TYPE_13     "mldsa44"
+#define SIG_TYPE_13     "ed25519"
 
 // should TLS connections between NFs stay active?
 #define SESSION_RES     true
+
+// should TLS Message Callback function print debug messages?
+#define TCP_DBG_PRINT   false
 
 static double t_serverhello_recv = 0.0;
 static double t_client_secret = 0.0;
@@ -557,10 +560,12 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             break;
     }
 
-    ogs_info("[TLS-MSG] %s %s at %.3f ms",
-             write_p ? "sent" : "recv",
-             ht_name,
-             t);
+    #if TCP_DBG_PRINT
+        ogs_info("[TLS-MSG] %s %s at %.3f ms",
+                write_p ? "sent" : "recv",
+                ht_name,
+                t);
+    #endif
 }
 // --- ending changed block
 
@@ -641,7 +646,7 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userdata)
         }
     #endif
 
-    // SSL_CTX_set_msg_callback(ctx, tls_msg_cb); TODO
+    SSL_CTX_set_msg_callback(ctx, tls_msg_cb);
     // --- ending changed block
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
     /* Set the SSL Key Log callback */
@@ -718,7 +723,7 @@ static connection_t *connection_add(
     /* If http response is not received within deadline,
      * Open5GS will discard this request. */
     ogs_timer_start(conn->timer,
-            ogs_local_conf()->time.message.sbi.connection_deadline);
+            ogs_time_from_sec(300));
 
     conn->easy = curl_easy_init();
     if (!conn->easy) {

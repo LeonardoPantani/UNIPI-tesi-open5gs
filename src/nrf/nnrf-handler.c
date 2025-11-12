@@ -613,13 +613,15 @@ bool nrf_nnrf_handle_nf_status_subscribe(
                 subscription_data->validity_duration);
     }
 
-    ogs_info("[%s] Subscription created until %s "
+    // --- starting changed block
+    /* ogs_info("[%s] Subscription created until %s "
             "[duration:%lld,validity:%d.%06d]",
             subscription_data->id,
             SubscriptionData->validity_time,
             (long long)subscription_data->validity_duration,
             (int)ogs_time_sec(subscription_data->validity_duration),
-            (int)ogs_time_usec(subscription_data->validity_duration));
+            (int)ogs_time_usec(subscription_data->validity_duration)); */
+    // --- ending changed block
 
     /* Location */
     server = ogs_sbi_server_from_stream(stream);

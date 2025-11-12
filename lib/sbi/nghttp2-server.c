@@ -249,12 +249,15 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 #define DEF_CIPH_12     "ECDHE-RSA-AES256-GCM-SHA384"
 
 // for TLS 1.3
-#define ALG_TYPE_13     "mlkem768"
+#define ALG_TYPE_13     "x25519"
 #define DEF_CIPH_13     "TLS_AES_256_GCM_SHA384"
-#define SIG_TYPE_13     "mldsa44"
+#define SIG_TYPE_13     "ed25519"
 
 // should TLS connections between NFs stay active?
 #define SESSION_RES     true
+
+// should TLS Message Callback function print debug messages?
+#define TCP_DBG_PRINT   false
 
 static double t_clienthello_recv = 0.0;
 static double t_serverhello_recv = 0.0;
@@ -371,11 +374,13 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             ht_name = "UnknownHandshake";
             break;
     }
-
+    
+    #if TCP_DBG_PRINT
     ogs_info("[TLS-MSG] %s %s at %.3f ms",
-             write_p ? "sent" : "recv",
-             ht_name,
-             t);
+            write_p ? "sent" : "recv",
+            ht_name,
+            t);
+    #endif
 }
 // --- ending changed block
 
@@ -1220,7 +1225,7 @@ static void accept_handler(short when, ogs_socket_t fd, void *data)
         SSL_set_fd(sbi_sess->ssl, new->fd);
         SSL_set_accept_state(sbi_sess->ssl);
         // --- starting changed block
-        // SSL_set_msg_callback(sbi_sess->ssl, tls_msg_cb); TODO
+        SSL_set_msg_callback(sbi_sess->ssl, tls_msg_cb);
         double t0 = now_ms();
         // --- ending changed block
         err = SSL_accept(sbi_sess->ssl);

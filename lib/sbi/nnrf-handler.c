@@ -871,14 +871,15 @@ static void handle_validity_time(
         ogs_assert(validity_time_string);
     }
 
-    ogs_info("[%s] Subscription %s until %s "
+    // --- starting changed block
+    /* ogs_info("[%s] Subscription %s until %s "
             "[duration:%lld,validity:%d.%06d,patch:%d.%06d]",
             subscription_data->id, action, validity_time_string,
             (long long)subscription_data->validity_duration,
             (int)ogs_time_sec(subscription_data->validity_duration),
             (int)ogs_time_usec(subscription_data->validity_duration),
-            (int)ogs_time_sec(patch), (int)ogs_time_usec(patch));
-
+            (int)ogs_time_sec(patch), (int)ogs_time_usec(patch)); */
+    // --- ending changed block
     ogs_free(validity_time_string);
 }
 

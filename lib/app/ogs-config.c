@@ -452,7 +452,7 @@ static int local_conf_prepare(void)
      * It is recomended to set at least 9 seconds to reflect
      * the paging failure result to GTPv2-C or HTTP2(SBI).
      */
-    local_conf.time.message.duration = ogs_time_from_sec(10);
+    local_conf.time.message.duration = ogs_time_from_sec(15);
 
     /*
      * Handover Wait Duration : 300 ms (Default)
