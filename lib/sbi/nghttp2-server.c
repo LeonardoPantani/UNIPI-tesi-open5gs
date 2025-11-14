@@ -224,17 +224,6 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 }
 
 // --- starting changed block
-/*
-    ALGORITMI DI KEY EXCHANGE FORNITI DA OQSPROVIDER:
-    
-    frodo640aes p256_frodo640aes x25519_frodo640aes frodo640shake p256_frodo640shake x25519_frodo640shake
-    frodo976aes p384_frodo976aes x448_frodo976aes frodo976shake p384_frodo976shake x448_frodo976shake
-    frodo1344aes p521_frodo1344aes frodo1344shake p521_frodo1344shake
-    mlkem512 p256_mlkem512 x25519_mlkem512 mlkem768 p384_mlkem768 x448_mlkem768
-    X25519MLKEM768 SecP256r1MLKEM768 mlkem1024 p521_mlkem1024 SecP384r1MLKEM1024
-    bikel1 p256_bikel1 x25519_bikel1 bikel3 p384_bikel3 x448_bikel3 bikel5 p521_bikel5
-*/
-
 // Version to use?
 #define OGS_TLS_MIN_VERSION TLS1_3_VERSION
 #define OGS_TLS_MAX_VERSION TLS1_3_VERSION
@@ -260,8 +249,6 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 #define TCP_DBG_PRINT   false
 
 static double t_clienthello_recv = 0.0;
-static double t_serverhello_recv = 0.0;
-static double t_server_secret = 0.0;
 
 static inline double now_ms(void) {
     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
@@ -272,8 +259,7 @@ static inline double now_ms(void) {
 void ogs_sbi_keylog_callback_leonardo_server(const SSL *ssl, const char *line)
 {
     if (strstr(line, "SERVER_HANDSHAKE_TRAFFIC_SECRET")) {
-        t_server_secret = now_ms();
-        double dt = t_server_secret - t_clienthello_recv;
+        double dt = now_ms() - t_clienthello_recv;
         ogs_info("[TLS-KEM] Encaps time (server): %.3f ms", dt);
     }
 
@@ -306,7 +292,6 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
-            if (!write_p) t_serverhello_recv = now_ms();
             ht_name = "ServerHello";
             break;
 

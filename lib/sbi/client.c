@@ -409,17 +409,6 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 }
 
 // --- starting changed block
-/*
-    ALGORITMI DI KEY EXCHANGE FORNITI DA OQSPROVIDER:
-    
-    frodo640aes p256_frodo640aes x25519_frodo640aes frodo640shake p256_frodo640shake x25519_frodo640shake
-    frodo976aes p384_frodo976aes x448_frodo976aes frodo976shake p384_frodo976shake x448_frodo976shake
-    frodo1344aes p521_frodo1344aes frodo1344shake p521_frodo1344shake
-    mlkem512 p256_mlkem512 x25519_mlkem512 mlkem768 p384_mlkem768 x448_mlkem768
-    X25519MLKEM768 SecP256r1MLKEM768 mlkem1024 p521_mlkem1024 SecP384r1MLKEM1024
-    bikel1 p256_bikel1 x25519_bikel1 bikel3 p384_bikel3 x448_bikel3 bikel5 p521_bikel5
-*/
-
 // Version to use?
 #define OGS_TLS_MIN_VERSION TLS1_3_VERSION
 #define OGS_TLS_MAX_VERSION TLS1_3_VERSION
@@ -445,7 +434,6 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 #define TCP_DBG_PRINT   false
 
 static double t_serverhello_recv = 0.0;
-static double t_client_secret = 0.0;
 
 static inline double now_ms(void) {
     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
@@ -455,11 +443,8 @@ static inline double now_ms(void) {
 /* wrapper */
 void ogs_sbi_keylog_callback_leonardo_client(const SSL *ssl, const char *line)
 {
-    double t = now_ms();
-
     if (strstr(line, "CLIENT_HANDSHAKE_TRAFFIC_SECRET")) {
-        t_client_secret = t;
-        double dt = t_client_secret - t_serverhello_recv;
+        double dt = now_ms() - t_serverhello_recv;
         ogs_info("[TLS-KEM] Decaps time (client): %.3f ms", dt);
     }
 
@@ -599,6 +584,9 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userdata)
         { NULL, 0, NULL, 0, 0 }
     };
     OSSL_LIB_CTX *libctx = OSSL_LIB_CTX_new();
+    if (OSSL_PROVIDER_load(libctx, "default") == NULL) {
+        ogs_error("[server] --- Failed to load default provider: %s", ERR_error_string(ERR_get_error(), NULL));
+    }
     if ((prov = OSSL_PROVIDER_load(libctx, "oqsprovider")) != NULL && OSSL_PROVIDER_get_params(prov, request))
         ogs_info("[client] %s\n", build);
     else
@@ -723,7 +711,7 @@ static connection_t *connection_add(
     /* If http response is not received within deadline,
      * Open5GS will discard this request. */
     ogs_timer_start(conn->timer,
-            ogs_time_from_sec(300));
+            ogs_local_conf()->time.message.sbi.connection_deadline);
 
     conn->easy = curl_easy_init();
     if (!conn->easy) {
@@ -759,13 +747,11 @@ static connection_t *connection_add(
         #else
             curl_easy_setopt(conn->easy, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
         #endif
-
-        curl_easy_setopt(conn->easy, CURLOPT_TLS13_CIPHERS, DEF_CIPH_13);
         // --- ending changed block
 
         if (client->insecure_skip_verify) {
-            curl_easy_setopt(conn->easy, CURLOPT_SSL_VERIFYPEER, 0);
-            curl_easy_setopt(conn->easy, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_easy_setopt(conn->easy, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(conn->easy, CURLOPT_SSL_VERIFYHOST, 0L);
         } else {
             if (client->cacert)
                 curl_easy_setopt(conn->easy, CURLOPT_CAINFO, client->cacert);
