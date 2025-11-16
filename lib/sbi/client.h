@@ -37,35 +37,35 @@ extern "C" {
         if ((__cTX)->client) { \
             ogs_sbi_client_t *client = NULL; \
             \
-            client = ((__cTX)->client); \
+            client = ((__cTX)->client); /* --- starting changed block */ \
             ogs_assert(client); \
-            if (client->fqdn) { \
+            if (client->fqdn && false) { \
                 ogs_warn("UnRef NF EndPoint(fqdn) [%s:%d]", \
                         client->fqdn, client->fqdn_port); \
             } \
-            if (client->addr) { \
+            if (client->addr && false) { \
                 ogs_warn("UnRef NF EndPoint(addr) [%s:%d]", \
                     OGS_ADDR(client->addr, buf), OGS_PORT(client->addr)); \
             } \
-            if (client->addr6) { \
+            if (client->addr6 && false) { \
                 ogs_warn("UnRef NF EndPoint(addr6) [%s:%d]", \
                     OGS_ADDR(client->addr6, buf), OGS_PORT(client->addr6)); \
             } \
             ogs_sbi_client_remove(client); \
-        } \
+        } /* --- ending changed block */ \
         \
         OGS_OBJECT_REF(__pClient); \
         ((__cTX)->client) = (__pClient); \
         ogs_debug("CLIENT Ref [%d]", (__pClient)->reference_count); /* --- starting changed block */ \
-        if ((__pClient)->fqdn && 1 == 0) {  \
+        if ((__pClient)->fqdn && false) {  \
             ogs_info("Setup NF EndPoint(fqdn) [%s:%d]", \
                     (__pClient)->fqdn, (__pClient)->fqdn_port); \
         } \
-        if ((__pClient)->addr && 1 == 0) { \
+        if ((__pClient)->addr && false) { \
             ogs_info("Setup NF EndPoint(addr) [%s:%d]", \
                 OGS_ADDR((__pClient)->addr, buf), OGS_PORT((__pClient)->addr)); \
         } \
-        if ((__pClient)->addr6 && 1 == 0) { \
+        if ((__pClient)->addr6 && false) { \
             ogs_info("Setup NF EndPoint(addr6) [%s:%d]", \
                 OGS_ADDR((__pClient)->addr6, buf), \
                 OGS_PORT((__pClient)->addr6)); \

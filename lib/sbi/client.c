@@ -464,7 +464,7 @@ static void tls_msg_cb(int write_p, int version, int content_type,
     const char *ht_name = NULL;
 
     switch (ht) {
-        // TLS 1.2 only — server requests a new handshake
+        // TLS 1.2 only - server requests a new handshake
         case SSL3_MT_HELLO_REQUEST:
             ht_name = "HelloRequest";
             break;
@@ -485,12 +485,12 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             ht_name = "NewSessionTicket";
             break;
 
-        // TLS 1.3 — signals end of 0-RTT early data
+        // TLS 1.3 - signals end of 0-RTT early data
         case SSL3_MT_END_OF_EARLY_DATA:
             ht_name = "EndOfEarlyData";
             break;
 
-        // TLS 1.3 — encrypted extension data after ServerHello
+        // TLS 1.3 - encrypted extension data after ServerHello
         case SSL3_MT_ENCRYPTED_EXTENSIONS:
             ht_name = "EncryptedExtensions";
             break;
@@ -500,7 +500,7 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             ht_name = "Certificate";
             break;
 
-        // TLS 1.2 — server sends key exchange parameters
+        // TLS 1.2 - server sends key exchange parameters
         case SSL3_MT_SERVER_KEY_EXCHANGE:
             ht_name = "ServerKeyExchange";
             break;
@@ -510,7 +510,7 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             ht_name = "CertificateRequest";
             break;
 
-        // TLS 1.2 — server indicates end of handshake messages
+        // TLS 1.2 - server indicates end of handshake messages
         case SSL3_MT_SERVER_DONE:
             ht_name = "ServerHelloDone";
             break;
@@ -520,7 +520,7 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             ht_name = "ClientKeyExchange";
             break;
 
-        // Proves possession of the client’s private key
+        // Proves possession of the client's private key
         case SSL3_MT_CERTIFICATE_VERIFY:
             ht_name = "CertificateVerify";
             break;
@@ -530,7 +530,7 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             ht_name = "Finished";
             break;
 
-        // TLS 1.3 — updates symmetric keys during session
+        // TLS 1.3 - updates symmetric keys during session
         case SSL3_MT_KEY_UPDATE:
             ht_name = "KeyUpdate";
             break;
