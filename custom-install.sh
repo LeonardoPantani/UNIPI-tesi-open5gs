@@ -264,7 +264,7 @@ echo "> Lib sources inside:   $SRC_DIR"
 
 # ========== CONFIGURE gNB CONNECTION ADDRESS ==========
 echo
-echo "=== [8/10] gNB Connection Configuration ==="
+echo "=== [7/10] gNB Connection Configuration ==="
 
 # look for files that contain the string
 mapfile -t files_found < <(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true)
@@ -299,7 +299,7 @@ fi
 
 # ========== OPEN5GS BUILD (optional) ==========
 echo
-echo "=== [7/10] Building Open5GS ==="
+echo "=== [8/10] Building Open5GS ==="
 if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INSTALL_ROOT/lib" ]; then
     read -rp "> It seems Open5GS is not installed yet. Do you want to build it now? [y/N]: " ans
     if [[ "$ans" == "y" || "$ans" == "Y" ]]; then

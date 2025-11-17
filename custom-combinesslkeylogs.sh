@@ -18,7 +18,7 @@ while IFS= read -r file; do
 done < <(find "$DIR" -maxdepth 1 -type f -name '*.log' ! -name "$OUT" -printf '%T@ %p\n' | sort -n | awk '{ $1=""; sub(/^ /,""); print }')
 
 if ! $files_found; then
-  echo "No .log files found in $DIR (excluding $OUT)." >&2
+  echo "Warning: no .log files found in $DIR (excluding $OUT)." >&2
   exit 1
 fi
 
