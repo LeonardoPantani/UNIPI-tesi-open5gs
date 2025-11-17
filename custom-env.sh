@@ -1,11 +1,5 @@
 #!/bin/bash
-# ============================================
-# PQC Custom Environment Setup for Open5GS testing
-#   - OpenSSL
-#   - liboqs
-#   - OQS Provider
-#   - Curl
-# ============================================
+set -eo pipefail
 
 BASE_DIR="$(pwd)"
 INSTALL_DIR="$BASE_DIR/install/pqc-bundle"

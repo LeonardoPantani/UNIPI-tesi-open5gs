@@ -227,20 +227,15 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 // Version to use?
 #define OGS_TLS_MIN_VERSION TLS1_3_VERSION
 #define OGS_TLS_MAX_VERSION TLS1_3_VERSION
-// reminder: replace the following strings in the configs:
-// /home/leonardo/UNIPI-tesi-open5gs/install/etc/open5gs/tls2/
-// ... with ...
-// /home/leonardo/UNIPI-tesi-open5gs/install/etc/open5gs/tls/
-// ... and vice versa. By default, certificates in /tls/ are RSA, the ones in /tls2/ use ML-DSA44
 
 // for TLS 1.2
 #define ALG_TYPE_12     "P-256"
 #define DEF_CIPH_12     "ECDHE-RSA-AES256-GCM-SHA384"
 
 // for TLS 1.3
-#define ALG_TYPE_13     "x25519"
+#define ALG_TYPE_13     "mlkem512"
 #define DEF_CIPH_13     "TLS_AES_256_GCM_SHA384"
-#define SIG_TYPE_13     "ed25519"
+#define SIG_TYPE_13     "mldsa44"
 
 // should TLS connections between NFs stay active?
 #define SESSION_RES     true

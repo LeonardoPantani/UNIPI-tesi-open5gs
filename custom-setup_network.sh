@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -eo pipefail
 
 # force execute as sudo
 if [ "$(id -u)" -ne 0 ]; then

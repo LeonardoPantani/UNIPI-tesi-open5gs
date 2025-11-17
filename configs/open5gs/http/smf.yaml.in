@@ -11,28 +11,21 @@ global:
 #    peer: 64
 
 smf:
-  default:
-    tls:
-      server:
-        scheme: https
-        private_key: @sysconfdir@/open5gs/tls2/smf.key
-        cert: @sysconfdir@/open5gs/tls2/smf.crt
-        verify_client: true
-        verify_client_cacert: @sysconfdir@/open5gs/tls2/ca.crt
-        sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-server-sslkeylog.log
-      client:
-        scheme: https
-        cacert: @sysconfdir@/open5gs/tls2/ca.crt
-        client_private_key: @sysconfdir@/open5gs/tls2/smf.key
-        client_cert: @sysconfdir@/open5gs/tls2/smf.crt
-        client_sslkeylogfile: @localstatedir@/log/open5gs/tls/smf-client-sslkeylog.log
   sbi:
     server:
       - address: smf.localdomain
         port: 7777
     client:
       nrf:
-        - uri: https://nrf.localdomain:7777
+        - uri: http://nrf.localdomain:7777
+          interface: smf.localdomain
+  sbi:
+    server:
+      - address: smf.localdomain
+        port: 7777
+    client:
+      nrf:
+        - uri: http://nrf.localdomain:7777
           interface: smf.localdomain
 #   sbi:
 #     server:
@@ -40,9 +33,9 @@ smf:
 #         port: 7777
 #     client:
 # #      nrf:
-# #        - uri: https://nrf.localdomain:7777
+# #        - uri: http://nrf.localdomain:7777
 #       scp:
-#         - uri: https://scp.localdomain:7777
+#         - uri: http://scp.localdomain:7777
   pfcp:
     server:
       - address: smf.localdomain
@@ -244,21 +237,21 @@ smf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: https://127.0.0.10:7777
+#        - uri: http://127.0.0.10:7777
 #
 #  o Indirect Communication by Delegating to SCP
 #  sbi:
 #    client:
 #      scp:
-#        - uri: https://127.0.0.200:7777
+#        - uri: http://127.0.0.200:7777
 #
 #  o Indirect Communication without Delegation
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: https://127.0.0.10:7777
+#        - uri: http://127.0.0.10:7777
 #      scp:
-#        - uri: https://127.0.0.200:7777
+#        - uri: http://127.0.0.200:7777
 #      delegated:
 #        nrf:
 #          nfm: no    # Directly communicate NRF management functions
@@ -270,9 +263,9 @@ smf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: https://127.0.0.10:7777
+#        - uri: http://127.0.0.10:7777
 #      scp:
-#        - uri: https://127.0.0.200:7777
+#        - uri: http://127.0.0.200:7777
 #      delegated:
 #        nrf:
 #          nfm: no    # Directly communicate NRF management functions
@@ -284,9 +277,9 @@ smf:
 #  sbi:
 #    client:
 #      nrf:
-#        - uri: https://127.0.0.10:7777
+#        - uri: http://127.0.0.10:7777
 #      scp:
-#        - uri: https://127.0.0.200:7777
+#        - uri: http://127.0.0.200:7777
 #      # No 'delegated' section; defaults to AUTO delegation
 #
 ################################################################################
@@ -307,7 +300,7 @@ smf:
 #      - address: smf.localdomain
 #    client:
 #      nrf:
-#        - uri: https://nrf.localdomain
+#        - uri: http://nrf.localdomain
 #
 #  o Enable SSL key logging for Wireshark
 #    - This configuration allows capturing SSL/TLS session keys
@@ -328,7 +321,7 @@ smf:
 #      - address: smf.localdomain
 #    client:
 #      nrf:
-#        - uri: https://nrf.localdomain
+#        - uri: http://nrf.localdomain
 #
 #  o Add client TLS verification
 #  default:
@@ -351,7 +344,7 @@ smf:
 #      - address: smf.localdomain
 #    client:
 #      nrf:
-#        - uri: https://nrf.localdomain
+#        - uri: http://nrf.localdomain
 #
 ################################################################################
 # PFCP Server
