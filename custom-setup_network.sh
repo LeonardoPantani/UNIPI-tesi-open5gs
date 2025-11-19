@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+
 
 # force execute as sudo
 if [ "$(id -u)" -ne 0 ]; then
@@ -74,4 +74,3 @@ add_host_entry 127.0.0.7 upf.localdomain
 
 echo "----------------------------------"
 cat /etc/hosts
-return 0

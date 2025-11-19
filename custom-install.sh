@@ -91,31 +91,35 @@ else
 fi
 
 if ! command -v mongod &>/dev/null; then
-    echo "[!] MongoDB not detected. Installing MongoDB 8.0..."
-    sudo apt-get update -y
-    sudo apt-get install -y curl gnupg
+    read -rp "[!] MongoDB not detected. We can install it for you. This is ok? [y/N]: " ans
+    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+        sudo apt-get update -y
+        sudo apt-get install -y curl gnupg
 
-    case $os_version in
-        20) codename="focal" ;;
-        22) codename="jammy" ;;
-        24) codename="noble" ;;
-        26) codename="resolute" ;;
-        *)  codename="jammy" ;;
-    esac
+        case $os_version in
+            20) codename="focal" ;;
+            22) codename="jammy" ;;
+            24) codename="noble" ;;
+            26) codename="resolute" ;;
+            *)  codename="jammy" ;;
+        esac
 
-    curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu $codename/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
-    sudo apt-get update -y
-    sudo apt-get install -y mongodb-org
+        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu $codename/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+        sudo apt-get update -y
+        sudo apt-get install -y mongodb-org
 
-    if ! pgrep -x mongod >/dev/null; then
-        echo "> Starting MongoDB service..."
-        sudo systemctl start mongod
+        if ! pgrep -x mongod >/dev/null; then
+            echo "> Starting MongoDB service..."
+            sudo systemctl start mongod
+        fi
+
+        echo "> Enabling MongoDB service to start on boot..."
+        sudo systemctl enable mongod
+        echo "=== MongoDB installed and running ==="
+    else
+        echo "> Skipping MongoDB installation."
     fi
-
-    echo "> Enabling MongoDB service to start on boot..."
-    sudo systemctl enable mongod
-    echo "=== MongoDB installed and running ==="
 else
     echo "> MongoDB already installed, skipping."
 fi
@@ -125,7 +129,7 @@ fi
 
 # ========== PRECHECK: OPEN5GS DEPENDENCIES ==========
 echo
-echo "=== [2/10] Checking Open5GS dependencies (these should be already installed) ==="
+echo "=== [2/10] Checking Open5GS dependencies ==="
 
 missing_open5gs=$(check_missing_libs "$OPEN5GS_LIBS")
 
