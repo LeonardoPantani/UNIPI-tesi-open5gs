@@ -183,7 +183,7 @@ else
     fi
 
     cd openssl
-    ./Configure --prefix="$INSTALL_DIR/openssl" --libdir=lib64 no-docs
+    ./Configure --prefix="$INSTALL_DIR/openssl" --libdir=lib64 no-docs enable-trace
     make -j"$NPROC"
     make install
 fi
@@ -230,6 +230,7 @@ else
     cmake -DOPENSSL_ROOT_DIR="$INSTALL_DIR/openssl" \
           -Dliboqs_DIR="$INSTALL_DIR/liboqs/lib/cmake/liboqs" \
           -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/oqs-provider" \
+          -DCMAKE_BUILD_TYPE=Debug \
           ..
     make -j"$NPROC"
     make install

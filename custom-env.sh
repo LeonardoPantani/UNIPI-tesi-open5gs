@@ -12,6 +12,9 @@ CURL_ROOT="$INSTALL_DIR/curl"
 # executables
 export PATH="$OPENSSL_ROOT/bin:$CURL_ROOT/bin:$PATH"
 
+# for debugging KEM in OQSPROVIDER
+export OQSKEM=1
+
 # headers (for compiler include search)
 export C_INCLUDE_PATH="$OPENSSL_ROOT/include:$CURL_ROOT/include:$LIBOQS_ROOT/include:$OQSPROV_ROOT/include:$C_INCLUDE_PATH"
 export CPATH="$C_INCLUDE_PATH"

@@ -44,8 +44,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-void ogs_sbi_keylog_callback_leonardo_server(const SSL *ssl, const char *line);
 // --- ending changed block
 
 #define USE_SEND_DATA_WITH_NO_COPY 1
@@ -250,18 +248,6 @@ static inline double now_ms(void) {
     return (double)ts.tv_sec*1000.0 + (double)ts.tv_nsec/1e6;
 }
 
-/* wrapper */
-void ogs_sbi_keylog_callback_leonardo_server(const SSL *ssl, const char *line)
-{
-    if (strstr(line, "SERVER_HANDSHAKE_TRAFFIC_SECRET")) {
-        double dt = now_ms() - t_clienthello_recv;
-        ogs_info("[TLS-KEM] Encaps time (server): %.3f ms", dt);
-    }
-
-    /* original callback */
-    ogs_sbi_keylog_callback(ssl, line);
-}
-
 static void tls_msg_cb(int write_p, int version, int content_type,
                        const void *buf, size_t len, SSL *ssl, void *arg)
 {
@@ -281,12 +267,15 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 
         // First client message: supported versions, ciphers, extensions
         case SSL3_MT_CLIENT_HELLO:
-            if (!write_p) t_clienthello_recv = now_ms();
+            if (!write_p) t_clienthello_recv = t;
             ht_name = "ClientHello";
             break;
 
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
+            if (write_p) {
+                ogs_info("[TLS-KEM] Time between ClientHello receival and ServerHello sending: %.3f ms\n", (double)(t - t_clienthello_recv));
+            }
             ht_name = "ServerHello";
             break;
 
@@ -393,7 +382,7 @@ static SSL_CTX *create_ssl_ctx(OSSL_LIB_CTX *libctx,
         SSL_CTX_set_app_data(ssl_ctx, sslkeylog_file);
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
         /* Set the SSL Key Log callback */
-        SSL_CTX_set_keylog_callback(ssl_ctx, ogs_sbi_keylog_callback_leonardo_server);
+        SSL_CTX_set_keylog_callback(ssl_ctx, ogs_sbi_keylog_callback);
 #endif
     }
 
@@ -561,12 +550,6 @@ static int server_start(ogs_sbi_server_t *server,
         ogs_info("[server] --- %s\n", build);
     else
         ogs_error("[server] --- Unable to load oqsprovider.");
-
-    // ogs_info("[server] --- starting manual key generation (server_start).");
-    // double t0 = now_ms();
-    // generate_keypair(server, "ML-KEM-1024");
-    // double t1 = now_ms();
-    // ogs_info("[server] --- manual key generation completed in %.3f ms.", (t1-t0));
     // --- ending changed block
     char buf[OGS_ADDRSTRLEN];
     ogs_sock_t *sock = NULL;

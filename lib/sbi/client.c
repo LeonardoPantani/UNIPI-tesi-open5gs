@@ -33,8 +33,6 @@
 
 #include <time.h>
 #include <bits/time.h>
-
-void ogs_sbi_keylog_callback_leonardo_client(const SSL *ssl, const char *line);
 // --- ending changed block
 
 typedef struct sockinfo_s {
@@ -428,23 +426,11 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 // should TLS Message Callback function print debug messages?
 #define TCP_DBG_PRINT   false
 
-static double t_serverhello_recv = 0.0;
+static double t_clienthello_sent = 0.0;
 
 static inline double now_ms(void) {
     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
     return (double)ts.tv_sec*1000.0 + (double)ts.tv_nsec/1e6;
-}
-
-/* wrapper */
-void ogs_sbi_keylog_callback_leonardo_client(const SSL *ssl, const char *line)
-{
-    if (strstr(line, "CLIENT_HANDSHAKE_TRAFFIC_SECRET")) {
-        double dt = now_ms() - t_serverhello_recv;
-        ogs_info("[TLS-KEM] Decaps time (client): %.3f ms", dt);
-    }
-
-    /* original callback */
-    ogs_sbi_keylog_callback(ssl, line);
 }
 
 static void tls_msg_cb(int write_p, int version, int content_type,
@@ -466,12 +452,15 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 
         // First client message: supported versions, ciphers, extensions
         case SSL3_MT_CLIENT_HELLO:
+            if (write_p) t_clienthello_sent = t;
             ht_name = "ClientHello";
             break;
 
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
-            if (!write_p) t_serverhello_recv = now_ms();
+            if (!write_p) {
+                ogs_info("[TLS-KEM] Time between ClientHello sending and ServerHello receival: %.3f ms\n", (double)(t - t_clienthello_sent));
+            }
             ht_name = "ServerHello";
             break;
 
@@ -633,7 +622,7 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userdata)
     // --- ending changed block
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
     /* Set the SSL Key Log callback */
-    SSL_CTX_set_keylog_callback(ctx, ogs_sbi_keylog_callback_leonardo_client);
+    SSL_CTX_set_keylog_callback(ctx, ogs_sbi_keylog_callback);
 #endif
 
     return CURLE_OK;
