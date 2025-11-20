@@ -282,7 +282,7 @@ else
     if [[ "$gnb_addr" != "n" && "$gnb_addr" != "N" && -n "$gnb_addr" ]]; then
         while true; do
             echo "> You entered: $gnb_addr"
-            read -rp "> This is ok? [y/N]: " confirm
+            read -rp "> This is ok (q to skip)? [y/N/q]: " confirm
             if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                 for file in "${files_found[@]}"; do
                     sed -i "s|ADDRESS_PLACEHOLDER|$gnb_addr|g" "$file"
@@ -291,6 +291,9 @@ else
                 break
             elif [[ "$confirm" == "n" || "$confirm" == "N" ]]; then
                 read -rp "> Enter a new IP address: " gnb_addr
+            elif [[ "$confirm" == "q" || "$confirm" == "Q" ]]; then
+                echo "> Skipping gNB address configuration."
+                break
             else
                 echo "[!] Please answer y or n."
             fi

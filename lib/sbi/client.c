@@ -429,8 +429,9 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 static double t_clienthello_sent = 0.0;
 
 static inline double now_ms(void) {
-    struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
-    return (double)ts.tv_sec*1000.0 + (double)ts.tv_nsec/1e6;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
 }
 
 static void tls_msg_cb(int write_p, int version, int content_type,
@@ -459,7 +460,8 @@ static void tls_msg_cb(int write_p, int version, int content_type,
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
             if (!write_p) {
-                ogs_info("[TLS-KEM] Time between ClientHello sending and ServerHello receival: %.3f ms\n", (double)(t - t_clienthello_sent));
+                fprintf(stdout, "ch_snd-sh_rcv,%.3f,ms\n", (double)(t - t_clienthello_sent));
+                fflush(stdout);
             }
             ht_name = "ServerHello";
             break;

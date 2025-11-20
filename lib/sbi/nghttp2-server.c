@@ -244,8 +244,9 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 static double t_clienthello_recv = 0.0;
 
 static inline double now_ms(void) {
-    struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
-    return (double)ts.tv_sec*1000.0 + (double)ts.tv_nsec/1e6;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
 }
 
 static void tls_msg_cb(int write_p, int version, int content_type,
@@ -274,7 +275,8 @@ static void tls_msg_cb(int write_p, int version, int content_type,
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
             if (write_p) {
-                ogs_info("[TLS-KEM] Time between ClientHello receival and ServerHello sending: %.3f ms\n", (double)(t - t_clienthello_recv));
+                fprintf(stdout, "ch_rcv-sh_snd,%.3f,ms\n", (double)(t - t_clienthello_recv));
+                fflush(stdout);
             }
             ht_name = "ServerHello";
             break;
@@ -1194,7 +1196,7 @@ static void accept_handler(short when, ogs_socket_t fd, void *data)
         err = SSL_accept(sbi_sess->ssl);
         // --- starting changed block
         double t1 = now_ms();
-        ogs_info("[TLS] Handshake time (server side): %.3f ms", t1-t0);
+        fprintf(stdout, "hshake,%.3f,ms\n", t1-t0);
         // --- ending changed block
         if (err <= 0) {
             ogs_error("SSL_accept failed [%s]", ERR_error_string(ERR_get_error(), NULL));

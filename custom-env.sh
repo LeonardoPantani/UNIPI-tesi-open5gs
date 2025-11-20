@@ -28,16 +28,16 @@ export OPENSSL_MODULES="$OPENSSL_ROOT/lib64/ossl-modules"
 # pkg-config paths (for Meson/CMake)
 export PKG_CONFIG_PATH="$OPENSSL_ROOT/lib64/pkgconfig:$CURL_ROOT/lib/pkgconfig:$LIBOQS_ROOT/lib/pkgconfig:$OQSPROV_ROOT/lib/pkgconfig:$PKG_CONFIG_PATH"
 
-echo "[custom-env.sh] Environment configured:"
-echo "  OpenSSL root:   $OPENSSL_ROOT"
-echo "  liboqs root:    $LIBOQS_ROOT"
-echo "  OQS Provider:   $OQSPROV_ROOT"
-echo "  Curl root:      $CURL_ROOT"
-echo
-echo "  PATH=$PATH"
-echo "  C_INCLUDE_PATH=$C_INCLUDE_PATH"
-echo "  LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
-echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
-echo "  OPENSSL_MODULES=$OPENSSL_MODULES"
-echo
-echo "✅ Environment ready."
+# echo "[custom-env.sh] Environment configured:"
+# echo "  OpenSSL root:   $OPENSSL_ROOT"
+# echo "  liboqs root:    $LIBOQS_ROOT"
+# echo "  OQS Provider:   $OQSPROV_ROOT"
+# echo "  Curl root:      $CURL_ROOT"
+# echo
+# echo "  PATH=$PATH"
+# echo "  C_INCLUDE_PATH=$C_INCLUDE_PATH"
+# echo "  LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+# echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+# echo "  OPENSSL_MODULES=$OPENSSL_MODULES"
+# echo
+# echo "✅ Environment ready."
