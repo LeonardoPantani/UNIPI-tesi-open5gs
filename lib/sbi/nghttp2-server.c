@@ -527,7 +527,7 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 //     return OQS_SUCCESS;
 // }
 // --- ending changed block
-
+#include<unistd.h>
 static int server_start(ogs_sbi_server_t *server,
         int (*cb)(ogs_sbi_request_t *request, void *data))
 {

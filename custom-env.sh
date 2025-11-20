@@ -1,5 +1,4 @@
 #!/bin/bash
-set -eo pipefail
 
 BASE_DIR="$(pwd)"
 INSTALL_DIR="$BASE_DIR/install/pqc-bundle"

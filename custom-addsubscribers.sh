@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 DBCTL="./misc/db/open5gs-dbctl"
 K="465B5CE8B199B49FAA5F0A2EE238A6BC"

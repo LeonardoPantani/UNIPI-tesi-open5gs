@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 DIR="./install/var/log/open5gs/tls"
 OUT="core_sslkeylog.log"

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # force execute as sudo
 if [ "$(id -u)" -ne 0 ]; then
     exec sudo "$0" "$@"
