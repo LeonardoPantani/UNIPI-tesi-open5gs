@@ -208,7 +208,7 @@ int main(int argc, const char *const argv[])
     argv_out[i] = NULL;
 
     // TODO: uncomment me when calculating bootstrap times!
-    //sleep(3);
+    // sleep(3);
 
     ogs_signal_init();
     ogs_setup_signal_thread();

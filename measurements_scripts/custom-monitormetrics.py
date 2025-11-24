@@ -8,8 +8,8 @@ import subprocess
 CGROUP_ROOT = "/sys/fs/cgroup"
 CGROUP_NAME = "open5gs_monitor"
 CGROUP_PATH = os.path.join(CGROUP_ROOT, CGROUP_NAME)
-OUTPUT_DIR = "test_results/server_metrics_bootstrap"
-DURATION_SEC = 1800
+OUTPUT_DIR = "test_results/server_metrics_uereg"
+DURATION_SEC = 360
 NUM_EXPECTED_PROCESSES = 13
 SAMPLE_INTERVAL = 0.1
 
@@ -135,11 +135,6 @@ def main():
                 mem_bytes = read_memory_bytes()
                 timestamp_ms = int(time.time() * 1000)
 
-                if not started:
-                    if curr_cpu_usec == 0 and mem_bytes == 0:
-                        continue
-                    started = True
-
                 delta_cpu_usec = curr_cpu_usec - prev_cpu_usec
                 delta_time_ns = now_time_ns - prev_time_ns
                 if delta_time_ns == 0:
@@ -181,6 +176,11 @@ def main():
             print(f"[!] Could not change owner of output file: {e}")
 
         print("> Finished.")
+        try:
+            subprocess.run(["python3", "measurements_scripts/custom-showmetrics.py", filepath])
+        except Exception as e:
+            print(f"[!] Failed to run custom-showmetrics.py: {e}")
+
 
 if __name__ == "__main__":
     main()
