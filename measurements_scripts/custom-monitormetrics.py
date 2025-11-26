@@ -9,7 +9,6 @@ CGROUP_ROOT = "/sys/fs/cgroup"
 CGROUP_NAME = "open5gs_monitor"
 CGROUP_PATH = os.path.join(CGROUP_ROOT, CGROUP_NAME)
 OUTPUT_DIR = "test_results/server_metrics_uereg"
-DURATION_SEC = 360
 NUM_EXPECTED_PROCESSES = 13
 SAMPLE_INTERVAL = 0.1
 
@@ -88,6 +87,11 @@ def main():
     
     filename = f"servermetrics_{args.mode}_usage_{args.alg_type}_{args.sig_type}.csv"
     filepath = os.path.join(OUTPUT_DIR, filename)
+
+    if args.mode == "sr":
+        DURATION_SEC = 200
+    else:
+        DURATION_SEC = 360
 
     # finding processes
     print("> Waiting for Open5GS processes to start...")
