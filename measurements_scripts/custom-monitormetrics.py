@@ -6,10 +6,12 @@ import argparse
 import subprocess
 
 CGROUP_PATH = os.path.join("/sys/fs/cgroup", "open5gs_monitor")
-OUTPUT_DIR = "measurements_results/server_metrics/uereg"
+OUTPUT_DIR = "measurements_results/server_metrics/uereg/new"
 NUM_EXPECTED_PROCESSES = 13
 SAMPLE_INTERVAL = 0.1
 PROCESSES_START_TIMEOUT = 20
+DURATION_SEC_SR = 200
+DURATION_SEC_NOSR = 360
 
 
 def _get_original_user():
@@ -95,9 +97,9 @@ def main():
     )
 
     if args.MODE == "sr":
-        DURATION_SEC = 200
+        duration_sec = DURATION_SEC_SR
     else:
-        DURATION_SEC = 360
+        duration_sec = DURATION_SEC_NOSR
 
     # finding processes
     print("> Waiting for Open5GS processes to start...")
@@ -123,7 +125,7 @@ def main():
         _setup_cgroup(pids)
 
         print(
-            f"> Monitoring started. Duration: {DURATION_SEC} seconds. Output: {filepath}"
+            f"> Monitoring started. Duration: {duration_sec} seconds. Output: {filepath}"
         )
 
         with open(filepath, "w") as csv:
@@ -134,7 +136,7 @@ def main():
             prev_cpu_usec = _read_cpu_usage_usec()
             prev_time_ns = time.perf_counter_ns()
 
-            samples = int(DURATION_SEC / SAMPLE_INTERVAL)
+            samples = int(duration_sec / SAMPLE_INTERVAL)
 
             for i in range(samples):
                 time.sleep(SAMPLE_INTERVAL)
