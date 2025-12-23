@@ -729,11 +729,6 @@ void mme_s11_handle_delete_session_response(
         return;
     }
 
-    if (!enb_ue) {
-        ogs_error("ENB-S1 Context has already been removed");
-        return;
-    }
-
     if (!mme_ue) {
         ogs_error("MME-UE Context has already been removed");
         return;
@@ -883,6 +878,11 @@ void mme_s11_handle_delete_session_response(
     } else if (action == OGS_GTP_DELETE_SEND_TAU_ACCEPT) {
 
         MME_SESS_CLEAR(sess);
+
+        if (!enb_ue) {
+            ogs_error("ENB-S1 Context has already been removed");
+            return;
+        }
 
         GTP_COUNTER_CHECK(mme_ue, GTP_COUNTER_DELETE_SESSION_BY_TAU,
 
@@ -1055,14 +1055,18 @@ void mme_s11_handle_create_bearer_request(
 
     if (bearer->qos.mbr.downlink || bearer->qos.mbr.uplink ||
         bearer->qos.gbr.downlink || bearer->qos.gbr.uplink) {
-        if (bearer->qos.mbr.downlink == 0)
-            bearer->qos.mbr.downlink = MAX_BIT_RATE;
-        if (bearer->qos.mbr.uplink == 0)
-            bearer->qos.mbr.uplink = MAX_BIT_RATE;
-        if (bearer->qos.gbr.downlink == 0)
-            bearer->qos.gbr.downlink = MAX_BIT_RATE;
-        if (bearer->qos.gbr.uplink == 0)
-            bearer->qos.gbr.uplink = MAX_BIT_RATE;
+        if (bearer->qos.mbr.downlink == 0 ||
+            bearer->qos.mbr.downlink > OGS_MAX_BITRATE_S1AP)
+            bearer->qos.mbr.downlink = OGS_MAX_BITRATE_S1AP;
+        if (bearer->qos.mbr.uplink == 0 ||
+            bearer->qos.mbr.uplink > OGS_MAX_BITRATE_S1AP)
+            bearer->qos.mbr.uplink = OGS_MAX_BITRATE_S1AP;
+        if (bearer->qos.gbr.downlink == 0 ||
+            bearer->qos.gbr.downlink > OGS_MAX_BITRATE_S1AP)
+            bearer->qos.gbr.downlink = OGS_MAX_BITRATE_S1AP;
+        if (bearer->qos.gbr.uplink == 0 ||
+            bearer->qos.gbr.uplink > OGS_MAX_BITRATE_S1AP)
+            bearer->qos.gbr.uplink = OGS_MAX_BITRATE_S1AP;
     }
 
     /* Save Bearer TFT */

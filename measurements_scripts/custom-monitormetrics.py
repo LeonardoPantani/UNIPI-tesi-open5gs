@@ -6,10 +6,11 @@ import argparse
 import subprocess
 
 CGROUP_PATH = os.path.join("/sys/fs/cgroup", "open5gs_monitor")
-OUTPUT_DIR = "measurements_results/server_metrics/uereg"
+OUTPUT_DIR = "measurements_results/server_metrics/uereg/batch"
 NUM_EXPECTED_PROCESSES = 13
 SAMPLE_INTERVAL = 0.1
 PROCESSES_START_TIMEOUT = 20
+DURATION_SEC = 200  # default duration
 
 
 def _get_original_user():
@@ -19,7 +20,6 @@ def _get_original_user():
     if sudo_uid and sudo_gid:
         return int(sudo_uid), int(sudo_gid)
     else:
-        # fallback: root launched directly, own as current uid
         return os.getuid(), os.getgid()
 
 
@@ -76,7 +76,6 @@ def _read_memory_bytes():
 
 
 def main():
-    # checking root
     if os.geteuid() != 0:
         print("[!] This script must be run as root.")
         return
@@ -85,8 +84,16 @@ def main():
     parser.add_argument("MODE", choices=["nosr", "sr"], help="nosr or sr")
     parser.add_argument("ALG_TYPE", help="Algorithm Type")
     parser.add_argument("SIG_TYPE", help="Signature Type")
+    parser.add_argument(
+        "--time",
+        type=int,
+        default=DURATION_SEC,
+        help="Measurement duration in seconds (0 = manual stop with Ctrl+C)",
+    )
 
     args = parser.parse_args()
+
+    duration_sec = args.time
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     filepath = os.path.join(
@@ -94,12 +101,6 @@ def main():
         f"servermetrics_{args.MODE}_usage_{args.ALG_TYPE}_{args.SIG_TYPE}.csv",
     )
 
-    if args.MODE == "sr":
-        DURATION_SEC = 200
-    else:
-        DURATION_SEC = 360
-
-    # finding processes
     print("> Waiting for Open5GS processes to start...")
     start = time.time()
     pids = []
@@ -116,27 +117,29 @@ def main():
         return
 
     print(f"> Found {len(pids)} processes: {pids}")
-    st = time.time()
-    # end processes finding
 
     try:
         _setup_cgroup(pids)
 
-        print(
-            f"> Monitoring started. Duration: {DURATION_SEC} seconds. Output: {filepath}"
-        )
+        if duration_sec == 0:
+            print(f"> Monitoring started. Duration: unlimited (Ctrl+C to stop).")
+        else:
+            print(
+                f"> Monitoring started. Duration: {duration_sec} seconds. Output: {filepath}"
+            )
 
         with open(filepath, "w") as csv:
             csv.write("timestamp_ms,cpu_usage_usec,cpu_percent,mem_bytes\n")
 
             nproc = os.cpu_count() or 1
-
             prev_cpu_usec = _read_cpu_usage_usec()
             prev_time_ns = time.perf_counter_ns()
 
-            samples = int(DURATION_SEC / SAMPLE_INTERVAL)
+            i = 0
+            while True:
+                if duration_sec != 0 and i * SAMPLE_INTERVAL >= duration_sec:
+                    break
 
-            for i in range(samples):
                 time.sleep(SAMPLE_INTERVAL)
 
                 now_time_ns = time.perf_counter_ns()
@@ -157,13 +160,14 @@ def main():
                 csv.flush()
 
                 print(
-                    f"\r[{i+1}/{samples}] CPU: {curr_cpu_usec} usec ({cpu_percent:.2f}%) | MEM: {mem_bytes} bytes ",
+                    f"\r[{i}] CPU: {curr_cpu_usec} usec ({cpu_percent:.2f}%) | MEM: {mem_bytes} bytes ",
                     end="",
                     flush=True,
                 )
 
                 prev_cpu_usec = curr_cpu_usec
                 prev_time_ns = now_time_ns
+                i += 1
 
     except KeyboardInterrupt:
         print("\n> Interrupted by user.")
@@ -174,16 +178,13 @@ def main():
             os.rmdir(CGROUP_PATH)
         except:
             pass
-        orig_uid, orig_gid = _get_original_user()
 
+        orig_uid, orig_gid = _get_original_user()
         try:
             os.chown(OUTPUT_DIR, orig_uid, orig_gid)
+            os.chown(filepath, orig_uid, orig_gid)
         except:
             pass
-        try:
-            os.chown(filepath, orig_uid, orig_gid)
-        except Exception as e:
-            print(f"[!] Could not change owner of output file: {e}")
 
         print("> Finished.")
         try:
