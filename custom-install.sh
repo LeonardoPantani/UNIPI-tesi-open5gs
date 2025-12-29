@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e 
+
 OPEN5GS_LIBS="curl gnupg python3-pip python3-setuptools python3-wheel ninja-build build-essential flex bison git cmake libsctp-dev libgnutls28-dev libgcrypt20-dev libssl-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson"
 OPENSSL_LIBS="build-essential perl git zlib1g-dev"
 LIBOQS_LIBS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind"
@@ -15,8 +17,62 @@ LIBOQS_VER="0.14.0"
 OQS_VER="0.10.0"
 CURL_VER="curl-8_16_0"
 NPROC=$(nproc || echo 4)
+TRUST_MODE=false
 
-# ========== FUNCTIONS ==========
+# ========== arguments handling ==========
+usage() { echo "Usage: $0 [-t]"; exit 1; }
+
+while getopts "t" o; do
+    case "${o}" in
+        t)
+            TRUST_MODE=true
+            echo ">>> TRUST MODE ENABLED: No prompts will be shown."
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+# ========== helper functions ==========
+wait_for_apt_locks() {
+    local locks=("/var/lib/dpkg/lock-frontend" "/var/lib/dpkg/lock" "/var/lib/apt/lists/lock")
+    
+    for lock in "${locks[@]}"; do
+        while sudo fuser "$lock" >/dev/null 2>&1; do
+            echo "[!] Lock $lock is held by another process. Waiting 5s..."
+            sleep 5
+        done
+    done
+    echo "[*] Apt locks are free."
+}
+
+safe_apt_install() {
+    wait_for_apt_locks
+    sudo apt-get install -y --no-install-recommends "$@"
+}
+
+safe_apt_update() {
+    wait_for_apt_locks
+    sudo apt-get update -y
+}
+
+ask_confirm() {
+    local prompt="$1"
+    
+    if [ "$TRUST_MODE" = true ]; then
+        echo "$prompt [TRUST MODE: assuming Yes]"
+        return 0 # 0 = true (yes)
+    fi
+
+    read -rp "$prompt [y/N]: " ans
+    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+        return 0
+    else
+        return 1 # 1 = false (no)
+    fi
+}
 
 check_missing_libs() {
     local libs=()
@@ -35,16 +91,17 @@ install_missing_libs() {
     read -r -a missing <<< "$1"
     if [ "${#missing[@]}" -ne 0 ]; then
         echo "[i] Installing missing libraries: ${missing[*]}"
-        sudo apt-get update -y
-        sudo apt-get install -y --no-install-recommends "${missing[@]}"
+        safe_apt_update
+        safe_apt_install "${missing[@]}"
     fi
 }
 
 confirm_and_prepare() {
     local msg="$1"
-    local missing
     local libs_array=()
     read -r -a libs_array <<< "$2"
+    
+    local missing
     missing=$(check_missing_libs "${libs_array[*]}")
 
     if [ -n "$missing" ]; then
@@ -53,67 +110,50 @@ confirm_and_prepare() {
         msg="$msg\nAll required libraries already installed."
     fi
 
-    echo
-    echo -e "$msg"
-    read -rp "Proceed? [y/N]: " ans
-    if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
+    echo -e "\n$msg"
+    
+    if ask_confirm "Proceed?"; then
+        install_missing_libs "$missing"
+    else
         echo "[!] Operation cancelled by user."
         exit 1
     fi
-
-    install_missing_libs "$missing"
 }
 
+# ========== MAIN SCRIPT ==========
 
+# Check sudo privileges upfront
+echo "=== [0/10] Checking privileges ==="
+sudo -v || { echo "[!] This script requires sudo privileges for apt."; exit 1; }
 
 # ========== MONGODB INSTALLATION ==========
 echo
 echo "=== [1/10] Checking MongoDB installation ==="
 
-# Detect OS and version
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    os_id=$ID
-    os_version=${VERSION_ID%%.*}
-else
-    os_id="unknown"
-    os_version="0"
-fi
-
-if [ "$os_id" != "ubuntu" ]; then
-    echo "[!] Warning: this script was tested only on Ubuntu. Your system reports: $os_id."
-else
-    if (( os_version < 20 )); then
-        echo "[!] Unsupported Ubuntu version ($os_version). Minimum supported: 20 (Focal)."
-        exit 1
-    fi
-fi
-
 if ! command -v mongod &>/dev/null; then
-    read -rp "[!] MongoDB not detected. We can install it for you. This is ok? [y/N]: " ans
-    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
-        sudo apt-get update -y
-        sudo apt-get install -y curl gnupg
+    if ask_confirm "[!] MongoDB not detected. Install it?"; then
+        safe_apt_update
+        safe_apt_install curl gnupg
 
+        # Detect OS version logic...
+        if [ -f /etc/os-release ]; then . /etc/os-release; fi
+        os_version=${VERSION_ID%%.*}
         case $os_version in
             20) codename="focal" ;;
             22) codename="jammy" ;;
             24) codename="noble" ;;
-            26) codename="resolute" ;;
             *)  codename="jammy" ;;
         esac
 
-        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor --yes
         echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu $codename/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
-        sudo apt-get update -y
-        sudo apt-get install -y mongodb-org
+        
+        safe_apt_update
+        safe_apt_install mongodb-org
 
         if ! pgrep -x mongod >/dev/null; then
-            echo "> Starting MongoDB service..."
             sudo systemctl start mongod
         fi
-
-        echo "> Enabling MongoDB service to start on boot..."
         sudo systemctl enable mongod
         echo "=== MongoDB installed and running ==="
     else
@@ -123,85 +163,59 @@ else
     echo "> MongoDB already installed, skipping."
 fi
 
-
-
-
 # ========== PRECHECK: OPEN5GS DEPENDENCIES ==========
 echo
 echo "=== [2/10] Checking Open5GS dependencies ==="
 
 missing_open5gs=$(check_missing_libs "$OPEN5GS_LIBS")
+if apt-cache show libidn-dev > /dev/null 2>&1; then idn_pkg="libidn-dev"; else idn_pkg="libidn11-dev"; fi
+if ! dpkg -s "$idn_pkg" &>/dev/null; then missing_open5gs="$missing_open5gs $idn_pkg"; fi
 
-if apt-cache show libidn-dev > /dev/null 2>&1; then
-    idn_pkg="libidn-dev"
-else
-    idn_pkg="libidn11-dev"
-fi
-if ! dpkg -s "$idn_pkg" &>/dev/null; then
-    missing_open5gs="$missing_open5gs $idn_pkg"
-fi
-
-if [ -z "$missing_open5gs" ]; then
-    echo "> All Open5GS dependencies already installed."
-else
-    echo "[!] Missing Open5GS dependencies detected:"
-    echo "   $missing_open5gs"
-    read -rp "Install missing Open5GS dependencies before continuing? [y/N]: " ans
-    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
-        sudo apt-get update -y
-        sudo apt-get install -y --no-install-recommends $missing_open5gs
+if [ -n "$missing_open5gs" ]; then
+    echo "[!] Missing: $missing_open5gs"
+    if ask_confirm "Install missing Open5GS dependencies?"; then
+        safe_apt_update
+        safe_apt_install "$missing_open5gs"
     else
-        echo "[!] Cannot continue without Open5GS dependencies."
+        echo "[!] Cannot continue."
         exit 1
     fi
+else
+    echo "> Dependencies already installed."
 fi
 
-if [ ! -d $INSTALL_DIR ]; then
+if [ ! -d "$INSTALL_DIR" ]; then
     echo
-    read -rp "> To compile and install Open5GS, the folder $INSTALL_DIR will be created. Is it ok? [y/N]: " ans
-    if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
-        echo "[!] Operation cancelled by user."
+    if ! ask_confirm "> Create folder $INSTALL_DIR?"; then
         exit 1
     fi
     mkdir -p "$INSTALL_DIR" "$SRC_DIR"
 fi
 
-
-
 # ========== OPENSSL ==========
 echo
 echo "=== [3/10] OpenSSL $OPENSSL_VER ==="
 if [ -d "$INSTALL_DIR/openssl" ]; then
-    echo "> OpenSSL already installed, skipping."
+    echo "> OpenSSL already installed."
 else
-    confirm_and_prepare "We are about to clone, build and install OpenSSL $OPENSSL_VER." "$OPENSSL_LIBS"
-
+    confirm_and_prepare "Build OpenSSL $OPENSSL_VER?" "$OPENSSL_LIBS"
     cd "$SRC_DIR"
-    if [ ! -d openssl ]; then
-        git clone --depth 1 --branch "openssl-$OPENSSL_VER" https://github.com/openssl/openssl.git
-    fi
-
+    [ ! -d openssl ] && git clone --depth 1 --branch "openssl-$OPENSSL_VER" https://github.com/openssl/openssl.git
     cd openssl
     ./Configure --prefix="$INSTALL_DIR/openssl" --libdir=lib64 no-docs enable-trace
     make -j"$NPROC"
     make install
 fi
 
-
-
 # ========== LIBOQS ==========
 echo
 echo "=== [4/10] liboqs $LIBOQS_VER ==="
 if [ -d "$INSTALL_DIR/liboqs" ]; then
-    echo "> liboqs already installed, skipping."
+    echo "> liboqs already installed."
 else
-    confirm_and_prepare "We are about to clone, build and install liboqs $LIBOQS_VER." "$LIBOQS_LIBS"
-
+    confirm_and_prepare "Build liboqs $LIBOQS_VER?" "$LIBOQS_LIBS"
     cd "$SRC_DIR"
-    if [ ! -d liboqs ]; then
-        git clone --depth 1 --branch "$LIBOQS_VER" https://github.com/open-quantum-safe/liboqs.git
-    fi
-
+    [ ! -d liboqs ] && git clone --depth 1 --branch "$LIBOQS_VER" https://github.com/open-quantum-safe/liboqs.git
     cd liboqs
     mkdir -p build && cd build
     cmake -GNinja -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR/liboqs" ..
@@ -209,21 +223,15 @@ else
     ninja install
 fi
 
-
-
 # ========== OQS PROVIDER ==========
 echo
 echo "=== [5/10] OQS Provider $OQS_VER ==="
 if [ -d "$INSTALL_DIR/oqs-provider" ]; then
-    echo "> OQS Provider already installed, skipping."
+    echo "> OQS Provider already installed."
 else
-    confirm_and_prepare "We are about to clone, build and install oqs-provider $OQS_VER." "$OQS_LIBS"
-
+    confirm_and_prepare "Build oqs-provider $OQS_VER?" "$OQS_LIBS"
     cd "$SRC_DIR"
-    if [ ! -d oqs-provider ]; then
-        git clone --depth 1 --branch "$OQS_VER" https://github.com/open-quantum-safe/oqs-provider.git
-    fi
-
+    [ ! -d oqs-provider ] && git clone --depth 1 --branch "$OQS_VER" https://github.com/open-quantum-safe/oqs-provider.git
     cd oqs-provider
     mkdir -p _build && cd _build
     cmake -DOPENSSL_ROOT_DIR="$INSTALL_DIR/openssl" \
@@ -235,21 +243,15 @@ else
     make install
 fi
 
-
-
 # ========== CURL ==========
 echo
 echo "=== [6/10] Curl $CURL_VER ==="
 if [ -d "$INSTALL_DIR/curl" ]; then
-    echo "> Curl already installed, skipping."
+    echo "> Curl already installed."
 else
-    confirm_and_prepare "We are about to clone, build and install curl $CURL_VER. This version uses the previously installed OpenSSL core." "$CURL_LIBS"
-
+    confirm_and_prepare "Build curl $CURL_VER?" "$CURL_LIBS"
     cd "$SRC_DIR"
-    if [ ! -d curl ]; then
-        git clone --depth 1 --branch "$CURL_VER" https://github.com/curl/curl.git
-    fi
-
+    [ ! -d curl ] && git clone --depth 1 --branch "$CURL_VER" https://github.com/curl/curl.git
     cd curl
     autoreconf -fi
     ./configure --with-openssl="$INSTALL_DIR/openssl" --prefix="$INSTALL_DIR/curl"
@@ -257,107 +259,69 @@ else
     make install
 fi
 
-cd $BASE_DIR
-
-echo
-echo "=== Libraries built successfully ==="
-echo "> Libraries inside:     $INSTALL_DIR"
-echo "> Lib sources inside:   $SRC_DIR"
-
-
+cd "$BASE_DIR"
 
 # ========== CONFIGURE gNB CONNECTION ADDRESS ==========
 echo
 echo "=== [7/10] gNB Connection Configuration ==="
-
-# look for files that contain the string
 mapfile -t files_found < <(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true)
+GNB_CONFIGURED=false
 
-if [ "${#files_found[@]}" -eq 0 ]; then
-    echo "> No configuration files with 'ADDRESS_PLACEHOLDER' found, skipping."
-else
-    read -rp "> Enter the IP address the gNB should use to connect to the AMF/UPF (or 'n' to skip): " gnb_addr
-
-    if [[ "$gnb_addr" != "n" && "$gnb_addr" != "N" && -n "$gnb_addr" ]]; then
-        while true; do
-            echo "> You entered: $gnb_addr"
-            read -rp "> This is ok (q to skip)? [y/N/q]: " confirm
-            if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                for file in "${files_found[@]}"; do
-                    sed -i "s|ADDRESS_PLACEHOLDER|$gnb_addr|g" "$file"
-                done
-                echo "> Configuration updated successfully."
-                break
-            elif [[ "$confirm" == "n" || "$confirm" == "N" ]]; then
-                read -rp "> Enter a new IP address: " gnb_addr
-            elif [[ "$confirm" == "q" || "$confirm" == "Q" ]]; then
-                echo "> Skipping gNB address configuration."
-                break
-            else
-                echo "[!] Please answer y or n."
-            fi
-        done
+if [ "${#files_found[@]}" -gt 0 ]; then
+    if [ "$TRUST_MODE" = true ]; then
+         echo "> TRUST MODE: Skipping gNB address configuration (manual step required later)."
     else
-        echo "> Skipping gNB address configuration."
+        read -rp "> Enter gNB IP (or 'n' to skip): " gnb_addr
+        if [[ "$gnb_addr" != "n" && -n "$gnb_addr" ]]; then
+             for file in "${files_found[@]}"; do
+                sed -i "s|ADDRESS_PLACEHOLDER|$gnb_addr|g" "$file"
+             done
+             echo "> Config updated."
+             GNB_CONFIGURED=true
+        fi
     fi
+else
+    echo "> No configuration files with 'ADDRESS_PLACEHOLDER' found."
+    GNB_CONFIGURED=true 
 fi
 
-
-
-# ========== OPEN5GS BUILD (optional) ==========
+# ========== OPEN5GS BUILD ==========
 echo
 echo "=== [8/10] Building Open5GS ==="
-if [ ! -d "$INSTALL_ROOT/etc" ] || [ ! -d "$INSTALL_ROOT/bin" ] || [ ! -d "$INSTALL_ROOT/lib" ]; then
-    read -rp "> It seems Open5GS is not installed yet. Do you want to build it now? [y/N]: " ans
-    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
-        source ./custom-env.sh
+if [ ! -d "$INSTALL_ROOT/bin" ]; then
+    if ask_confirm "Build Open5GS now?"; then
+        if [ -f ./custom-env.sh ]; then
+            source ./custom-env.sh
+        fi
         meson setup build --prefix="$PWD/install"
         cd build
-        ninja -j"$(nproc)"
+        ninja -j"$NPROC"
         ninja install
         cd ..
-        echo "=== Open5GS built successfully ==="
-    else
-        echo "> Skipping Open5GS build. You will have to build Open5GS by yourself! Use the VSCode Task or execute this  commands:"
-        echo "[i] source ./custom-env.sh && meson setup build --prefix=$PWD/install && cd build && ninja -j$(nproc) && ninja install"
     fi
 else
-    echo "> Open5GS installation already detected, skipping."
+    echo "> Open5GS already built."
 fi
 
-
-
-# ========== NETWORK SETUP (optional) ==========
+# ========== NETWORK & SUBSCRIBERS ==========
 echo
 echo "=== [9/10] Network Setup ==="
-read -rp "> Do you want to setup the network (create aliases, enable port forwarding, and add firewall rules)? [y/N]: " ans
-if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
-    if [ -x "./custom-setup_network.sh" ]; then
-        ./custom-setup_network.sh
-        echo "=== Network setup completed successfully ==="
-    else
-        echo "[!] ./custom-setup_network.sh not found or not executable."
-    fi
-else
-    echo "> Skipping network setup."
+if ask_confirm "Setup network (firewall/nat)?"; then
+    [ -x "./custom-setup_network.sh" ] && ./custom-setup_network.sh
 fi
 
-
-
-# ========== ADD SUBSCRIBERS (optional) ==========
 echo
 echo "=== [10/10] Add Subscribers ==="
-read -rp "> To enable you to test immediately, we can automatically add subscribers to mongoDB for the network with MCC 001 and MNC 01. This is ok? [y/N]: " ans
-if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
-    if [ -x "./custom-addsubscribers.sh" ]; then
-        ./custom-addsubscribers.sh
-        echo "=== Subscribers added successfully ==="
-    else
-        echo "[!] ./custom-addsubscribers.sh not found or not executable."
-    fi
-else
-    echo "> Skipping subscriber addition."
+if ask_confirm "Add default subscribers to MongoDB?"; then
+    [ -x "./custom-addsubscribers.sh" ] && ./custom-addsubscribers.sh
 fi
 
 echo
 echo "( ˶ˆᗜˆ˵ ) Build process completed successfully!"
+if [ "$GNB_CONFIGURED" = false ]; then
+    echo "-----------------------------------------------------------------------"
+    echo " [!] IMPORTANT:"
+    echo "     Replace 'ADDRESS_PLACEHOLDER' in Open5GS configuration files"
+    echo "     with the real gNB IP address manually."
+    echo "-----------------------------------------------------------------------"
+fi
