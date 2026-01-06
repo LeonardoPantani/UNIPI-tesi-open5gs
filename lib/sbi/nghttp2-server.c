@@ -241,8 +241,6 @@ static int ssl_ctx_set_proto_versions(SSL_CTX *ssl_ctx, int min, int max)
 // should TLS Message Callback function print debug messages?
 #define TCP_DBG_PRINT   false
 
-static double t_clienthello_recv = 0.0;
-
 static inline double now_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
@@ -255,9 +253,8 @@ static void tls_msg_cb(int write_p, int version, int content_type,
     if (content_type != SSL3_RT_HANDSHAKE || !buf || len < 1)
         return;
 
+    #if TCP_DBG_PRINT
     int ht = ((const unsigned char *)buf)[0];
-    double t = now_ms();
-
     const char *ht_name = NULL;
 
     switch (ht) {
@@ -268,16 +265,11 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 
         // First client message: supported versions, ciphers, extensions
         case SSL3_MT_CLIENT_HELLO:
-            if (!write_p) t_clienthello_recv = t;
             ht_name = "ClientHello";
             break;
 
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
-            if (write_p) {
-                fprintf(stdout, "ch_rcv-sh_snd,%.3f,ms\n", (double)(t - t_clienthello_recv));
-                fflush(stdout);
-            }
             ht_name = "ServerHello";
             break;
 
@@ -346,7 +338,6 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             break;
     }
     
-    #if TCP_DBG_PRINT
     ogs_info("[TLS-MSG] %s %s at %.3f ms",
             write_p ? "sent" : "recv",
             ht_name,

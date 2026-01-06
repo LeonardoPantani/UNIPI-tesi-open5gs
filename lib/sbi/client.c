@@ -426,23 +426,14 @@ static char *add_params_to_uri(CURL *easy, char *uri, ogs_hash_t *params)
 // should TLS Message Callback function print debug messages?
 #define TCP_DBG_PRINT   false
 
-static double t_clienthello_sent = 0.0;
-
-static inline double now_ms(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
-}
-
 static void tls_msg_cb(int write_p, int version, int content_type,
                        const void *buf, size_t len, SSL *ssl, void *arg)
 {
     if (content_type != SSL3_RT_HANDSHAKE || !buf || len < 1)
         return;
 
+    #if TCP_DBG_PRINT
     int ht = ((const unsigned char *)buf)[0];
-    double t = now_ms();
-
     const char *ht_name = NULL;
 
     switch (ht) {
@@ -453,16 +444,11 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 
         // First client message: supported versions, ciphers, extensions
         case SSL3_MT_CLIENT_HELLO:
-            if (write_p) t_clienthello_sent = t;
             ht_name = "ClientHello";
             break;
 
         // Server chooses parameters and sends its random/cipher list
         case SSL3_MT_SERVER_HELLO:
-            if (!write_p) {
-                fprintf(stdout, "ch_snd-sh_rcv,%.3f,ms\n", (double)(t - t_clienthello_sent));
-                fflush(stdout);
-            }
             ht_name = "ServerHello";
             break;
 
@@ -531,11 +517,10 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             break;
     }
 
-    #if TCP_DBG_PRINT
-        ogs_info("[TLS-MSG] %s %s at %.3f ms",
-                write_p ? "sent" : "recv",
-                ht_name,
-                t);
+    ogs_info("[TLS-MSG] %s %s at %.3f ms",
+            write_p ? "sent" : "recv",
+            ht_name,
+            t);
     #endif
 }
 // --- ending changed block
