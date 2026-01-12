@@ -10,3 +10,5 @@ webui/.next
 
 .vscode/settings.json
 .cache
+
+measurements_results/appendix_content/**/*.log
