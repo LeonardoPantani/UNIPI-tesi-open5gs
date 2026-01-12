@@ -1,0 +1,222 @@
+===================
+36. 	AMF 5 -> AUSF 11
+-> POST /nausf-auth/v1/ue-authentications
+{"supiOrSuci":"suci-0-001-01-0000-1-1-b15bdd0a4632bbbacfcef9667effb240f481c2c9624f800792d1ae947fceda310d531af05843e7cb1637032b22","servingNetworkName":"5G:mnc001.mcc001.3gppnetwork.org"}
+<- 201 CREATED
+{"authType":"5G_AKA","5gAuthData":{"rand":"a7bfa4f778bd1582ebf64ab3f427e976","hxresStar":"4024278e885a3475e643cc0f394f398b","autn":"7496b710a23f80008551ef1b975e721f"},"_links":{"5g-aka":{"href":"https://ausf.localdomain:7777/nausf-auth/v1/ue-authentications/1/5g-aka-confirmation"}}}
+
+-> PUT /nausf-auth/v1/ue-authentications/1/5g-aka-confirmation
+{"resStar":"3b09eee430ee657a7f9b2cd115946e0f"}
+<- 200 OK
+{"authResult":"AUTHENTICATION_SUCCESS","supi":"imsi-001010000000001","kseaf":"093cad74bb0449209dbcb42d8bcaa69771dec2046af48f951d2d2e9273f278c6"}
+===================
+
+
+
+===================
+52. 	AUSF 11 -> UDM 12
+-> POST /nudm-ueau/v1/suci-0-001-01-0000-1-1-b15bdd0a4632bbbacfcef9667effb240f481c2c9624f800792d1ae947fceda310d531af05843e7cb1637032b22/security-information/generate-auth-data
+{"servingNetworkName":"5G:mnc001.mcc001.3gppnetwork.org","ausfInstanceId":"d70db702-d9c2-41f0-92ca-d1c75ea1e162"}
+<- 200 OK
+{"authType":"5G_AKA","authenticationVector":{"avType":"5G_HE_AKA","rand":"a7bfa4f778bd1582ebf64ab3f427e976","autn":"7496b710a23f80008551ef1b975e721f","xresStar":"3b09eee430ee657a7f9b2cd115946e0f","kausf":"d4a70960a9728351e13bfb733079a704e9754355fed2aeaf302645062c3ae090"},"supi":"imsi-001010000000001"}
+
+-> POST /nudm-ueau/v1/imsi-001010000000001/auth-events
+{"nfInstanceId":"d70db702-d9c2-41f0-92ca-d1c75ea1e162","success":true,"timeStamp":"2025-12-15T15:32:26.003618+01:00","authType":"5G_AKA","servingNetworkName":"5G:mnc001.mcc001.3gppnetwork.org"}
+<- 201 CREATED
+{"nfInstanceId":"d70db702-d9c2-41f0-92ca-d1c75ea1e162","success":true,"timeStamp":"2025-12-15T15:32:26.003618+01:00","authType":"5G_AKA","servingNetworkName":"5G:mnc001.mcc001.3gppnetwork.org"}
+===================
+
+
+
+===================
+68. 	UDM 12 -> UDR 20
+-> GET /nudr-dr/v1/subscription-data/imsi-001010000000001/authentication-data/authentication-subscription
+<- 200 OK
+{"authenticationMethod":"5G_AKA","encPermanentKey":"465b5ce8b199b49faa5f0a2ee238a6bc","sequenceNumber":{"sqn":"000000000e21"},"authenticationManagementField":"8000","encOpcKey":"e8ed289deba952e4283b54e88e6183ca"}
+
+-> PUT /nudr-dr/v1/subscription-data/imsi-001010000000001/authentication-data/authentication-status
+{"nfInstanceId":"d70db702-d9c2-41f0-92ca-d1c75ea1e162","success":true,"timeStamp":"2025-12-15T15:32:26.003618+01:00","authType":"5G_AKA","servingNetworkName":"5G:mnc001.mcc001.3gppnetwork.org"}
+<- 204 NO CONTENT
+
+-> PUT /nudr-dr/v1/subscription-data/imsi-001010000000001/context-data/amf-3gpp-access
+{"amfInstanceId":"d7102078-d9c2-41f0-9661-977682e2ffe9","pei":"imeisv-4370816125816151","deregCallbackUri":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/dereg-notify","initialRegistrationInd":true,"guami":{"plmnId":{"mcc":"001","mnc":"01"},"amfId":"020040"},"ratType":"NR"}
+<- 204 NO CONTENT
+
+-> GET /nudr-dr/v1/subscription-data/imsi-001010000000001/00101/provisioned-data/am-data
+<- 200 OK
+{"subscribedUeAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"nssai":{"defaultSingleNssais":[{"sst":1}]}}
+
+-> GET /nudr-dr/v1/subscription-data/imsi-001010000000001/00101/provisioned-data/smf-selection-subscription-data
+<- 200 OK
+{"subscribedSnssaiInfos":{"1":{"dnnInfos":[{"dnn":"internet","defaultDnnIndicator":true}]}}}
+===================
+
+
+
+===================
+114. 	AMF 5 -> UDM 12
+-> PUT /nudm-uecm/v1/imsi-001010000000001/registrations/amf-3gpp-access
+{"amfInstanceId":"d7102078-d9c2-41f0-9661-977682e2ffe9","pei":"imeisv-4370816125816151","deregCallbackUri":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/dereg-notify","initialRegistrationInd":true,"guami":{"plmnId":{"mcc":"001","mnc":"01"},"amfId":"020040"},"ratType":"NR"}
+<- 201 CREATED
+{"amfInstanceId":"d7102078-d9c2-41f0-9661-977682e2ffe9","pei":"imeisv-4370816125816151","deregCallbackUri":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/dereg-notify","initialRegistrationInd":true,"guami":{"plmnId":{"mcc":"001","mnc":"01"},"amfId":"020040"},"ratType":"NR"}
+
+-> GET /nudm-sdm/v2/imsi-001010000000001/am-data?plmn-id=%7B%22mcc%22%3A%22001%22%2C%22mnc%22%3A%2201%22%7D
+<- 200 OK
+{"subscribedUeAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"nssai":{"defaultSingleNssais":[{"sst":1}]}}
+
+-> GET /nudm-sdm/v2/imsi-001010000000001/smf-select-data?plmn-id=%7B%22mcc%22%3A%22001%22%2C%22mnc%22%3A%2201%22%7D
+<- 200 OK
+{"subscribedSnssaiInfos":{"1":{"dnnInfos":[{"dnn":"internet","defaultDnnIndicator":true}]}}}
+
+-> GET /nudm-sdm/v2/imsi-001010000000001/ue-context-in-smf-data?plmn-id=%7B%22mcc%22%3A%22001%22%2C%22mnc%22%3A%2201%22%7D
+<- 200 OK
+{}
+
+-> POST /nudm-sdm/v2/imsi-001010000000001/sdm-subscriptions
+{"nfInstanceId":"d7102078-d9c2-41f0-9661-977682e2ffe9","implicitUnsubscribe":true,"callbackReference":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/sdmsubscription-notify","monitoredResourceUris":["imsi-001010000000001/am-data"],"supportedFeatures":"1000","uniqueSubscription":true}
+<- 201 CREATED
+{"nfInstanceId":"d7102078-d9c2-41f0-9661-977682e2ffe9","implicitUnsubscribe":true,"callbackReference":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/sdmsubscription-notify","monitoredResourceUris":["imsi-001010000000001/am-data"],"supportedFeatures":"1000","uniqueSubscription":true}
+===================
+
+
+
+===================
+165.	AMF 5 -> PCF 13
+-> POST /npcf-am-policy-control/v1/policies
+{"notificationUri":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/am-policy-notify","supi":"imsi-001010000000001","accessType":"3GPP_ACCESS","pei":"imeisv-4370816125816151","userLoc":{"nrLocation":{"tai":{"plmnId":{"mcc":"001","mnc":"01"},"tac":"000001"},"ncgi":{"plmnId":{"mcc":"001","mnc":"01"},"nrCellId":"000000010"},"ueLocationTimestamp":"2025-12-15T14:32:25.960771Z"}},"timeZone":"+01:00","servingPlmn":{"mcc":"001","mnc":"01"},"ratType":"NR","ueAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"allowedSnssais":[{"sst":1}],"guami":{"plmnId":{"mcc":"001","mnc":"01"},"amfId":"020040"},"serviceName":"namf-callback","suppFeat":"4"}
+<- 201 CREATED
+{"request":{"notificationUri":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/am-policy-notify","supi":"imsi-001010000000001","accessType":"3GPP_ACCESS","pei":"imeisv-4370816125816151","userLoc":{"nrLocation":{"tai":{"plmnId":{"mcc":"001","mnc":"01"},"tac":"000001"},"ncgi":{"plmnId":{"mcc":"001","mnc":"01"},"nrCellId":"000000010"},"ueLocationTimestamp":"2025-12-15T14:32:25.960771Z"}},"timeZone":"+01:00","servingPlmn":{"mcc":"001","mnc":"01"},"ratType":"NR","ueAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"allowedSnssais":[{"sst":1}],"guami":{"plmnId":{"mcc":"001","mnc":"01"},"amfId":"020040"},"serviceName":"namf-callback","suppFeat":"4"},"ueAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"suppFeat":"4"}
+===================
+
+
+
+===================
+185.	PCF 13 -> UDR 20
+-> GET /nudr-dr/v1/policy-data/ues/imsi-001010000000001/am-data
+<- 200 OK
+{}
+
+-> GET /nudr-dr/v1/subscription-data/imsi-001010000000001/00101/provisioned-data/sm-data?single-nssai=%7B%22sst%22%3A1%7D&dnn=internet
+<- 200 OK
+[{"singleNssai":{"sst":1},"dnnConfigurations":{"internet":{"pduSessionTypes":{"defaultSessionType":"IPV4V6","allowedSessionTypes":["IPV4","IPV6","IPV4V6"]},"sscModes":{"defaultSscMode":"SSC_MODE_1","allowedSscModes":["SSC_MODE_1","SSC_MODE_2","SSC_MODE_3"]},"5gQosProfile":{"5qi":9,"arp":{"priorityLevel":8,"preemptCap":"NOT_PREEMPT","preemptVuln":"PREEMPTABLE"},"priorityLevel":8},"sessionAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"}}}}]
+
+-> GET /nudr-dr/v1/policy-data/ues/imsi-001010000000001/sm-data?dnn=internet&snssai=%7B%22sst%22%3A1%7D
+<- 200 OK
+{"smPolicySnssaiData":{"1":{"snssai":{"sst":1},"smPolicyDnnData":{"internet":{"dnn":"internet"}}}}}
+
+-> PUT /nudr-dr/v1/subscription-data/imsi-001010000000001/context-data/smf-registrations/1
+{"smfInstanceId":"d714c4f2-d9c2-41f0-9255-6bf7a74b1f30","pduSessionId":1,"singleNssai":{"sst":1},"dnn":"internet","plmnId":{"mcc":"001","mnc":"01"}}
+<- 204 NO CONTENT
+===================
+
+
+
+===================
+225.	AMF 5 -> SMF 4
+-> POST /nsmf-pdusession/v1/sm-contexts
+{"supi":"imsi-001010000000001","pei":"imeisv-4370816125816151","pduSessionId":1,"dnn":"internet","sNssai":{"sst":1},"servingNfId":"d7102078-d9c2-41f0-9661-977682e2ffe9","guami":{"plmnId":{"mcc":"001","mnc":"01"},"amfId":"020040"},"servingNetwork":{"mcc":"001","mnc":"01"},"requestType":"INITIAL_REQUEST","n1SmMsg":{"contentId":"5gnas-sm"},"anType":"3GPP_ACCESS","ratType":"NR","ueLocation":{"nrLocation":{"tai":{"plmnId":{"mcc":"001","mnc":"01"},"tac":"000001"},"ncgi":{"plmnId":{"mcc":"001","mnc":"01"},"nrCellId":"000000010"},"ueLocationTimestamp":"2025-12-15T14:32:25.960771Z"}},"ueTimeZone":"+01:00","smContextStatusUri":"https://amf.localdomain:7777/namf-callback/v1/imsi-001010000000001/sm-context-status/1","pcfId":"d70e3c9a-d9c2-41f0-9ef4-413839465019"}
+<- 201 CREATED
+{}
+
+-> POST /nsmf-pdusession/v1/sm-contexts/1/modify
+{"n2SmInfo":{"contentId":"ngap-sm"},"n2SmInfoType":"PDU_RES_SETUP_RSP"}
+<- 204 NO CONTENT
+===================
+
+
+
+===================
+241.	SMF 4 -> UDM 12
+-> GET /nudm-sdm/v2/imsi-001010000000001/sm-data?single-nssai=%7B%22sst%22%3A1%7D&dnn=internet&plmn-id=%7B%22mcc%22%3A%22001%22%2C%22mnc%22%3A%2201%22%7D
+<- 200 OK
+[{"singleNssai":{"sst":1},"dnnConfigurations":{"internet":{"pduSessionTypes":{"defaultSessionType":"IPV4V6","allowedSessionTypes":["IPV4","IPV6","IPV4V6"]},"sscModes":{"defaultSscMode":"SSC_MODE_1","allowedSscModes":["SSC_MODE_1","SSC_MODE_2","SSC_MODE_3"]},"5gQosProfile":{"5qi":9,"arp":{"priorityLevel":8,"preemptCap":"NOT_PREEMPT","preemptVuln":"PREEMPTABLE"},"priorityLevel":8},"sessionAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"}}}}]
+
+-> POST /nudm-sdm/v2/imsi-001010000000001/sdm-subscriptions
+{"nfInstanceId":"d714c4f2-d9c2-41f0-9255-6bf7a74b1f30","implicitUnsubscribe":true,"callbackReference":"https://smf.localdomain:7777/nsmf-callback/v1/sdmsubscription-notify/imsi-001010000000001","monitoredResourceUris":["imsi-001010000000001/sm-data"],"singleNssai":{"sst":1},"dnn":"internet","plmnId":{"mcc":"001","mnc":"01"},"supportedFeatures":"1000","uniqueSubscription":true}
+<- 201 CREATED
+{"nfInstanceId":"d714c4f2-d9c2-41f0-9255-6bf7a74b1f30","implicitUnsubscribe":true,"callbackReference":"https://smf.localdomain:7777/nsmf-callback/v1/sdmsubscription-notify/imsi-001010000000001","monitoredResourceUris":["imsi-001010000000001/sm-data"],"singleNssai":{"sst":1},"dnn":"internet","plmnId":{"mcc":"001","mnc":"01"},"supportedFeatures":"1000","uniqueSubscription":true}
+
+-> PUT /nudm-uecm/v1/imsi-001010000000001/registrations/smf-registrations/1
+{"smfInstanceId":"d714c4f2-d9c2-41f0-9255-6bf7a74b1f30","pduSessionId":1,"singleNssai":{"sst":1},"dnn":"internet","plmnId":{"mcc":"001","mnc":"01"}}
+<- 201 CREATED
+{"smfInstanceId":"d714c4f2-d9c2-41f0-9255-6bf7a74b1f30","pduSessionId":1,"singleNssai":{"sst":1},"dnn":"internet","plmnId":{"mcc":"001","mnc":"01"}}
+===================
+
+
+
+===================
+274.	SMF 4 -> PCF 13
+-> POST /npcf-smpolicycontrol/v1/sm-policies
+{"supi":"imsi-001010000000001","pduSessionId":1,"pduSessionType":"IPV4","chargingcharacteristics":"00000800","dnn":"internet","notificationUri":"https://smf.localdomain:7777/nsmf-callback/v1/sm-policy-notify/1","ratType":"NR","servingNetwork":{"mcc":"001","mnc":"01"},"userLocationInfo":{"nrLocation":{"tai":{"plmnId":{"mcc":"001","mnc":"01"},"tac":"000001"},"ncgi":{"plmnId":{"mcc":"001","mnc":"01"},"nrCellId":"000000010"},"ueLocationTimestamp":"2025-12-15T14:32:25.960771Z"}},"ueTimeZone":"+01:00","ipv4Address":"10.45.0.2","subsSessAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"subsDefQos":{"5qi":9,"arp":{"priorityLevel":8,"preemptCap":"NOT_PREEMPT","preemptVuln":"PREEMPTABLE"},"priorityLevel":8},"sliceInfo":{"sst":1},"suppFeat":"4000000"}
+<- 201 CREATED
+{"sessRules":{"1":{"authSessAmbr":{"uplink":"1000000 Kbps","downlink":"1000000 Kbps"},"authDefQos":{"5qi":9,"arp":{"priorityLevel":8,"preemptCap":"NOT_PREEMPT","preemptVuln":"PREEMPTABLE"},"priorityLevel":8},"sessRuleId":"1"}},"suppFeat":"4000000"}
+===================
+
+
+
+===================
+297.	PCF 13 -> BSF 15
+-> POST /nbsf-management/v1/pcfBindings
+{"supi":"imsi-001010000000001","ipv4Addr":"10.45.0.2","dnn":"internet","pcfFqdn":"pcf.localdomain","pcfIpEndPoints":[{"ipv4Address":"127.0.0.13","port":7777}],"snssai":{"sst":1},"suppFeat":"2"}
+<- 201 CREATED
+{"supi":"imsi-001010000000001","ipv4Addr":"10.45.0.2","dnn":"internet","pcfFqdn":"pcf.localdomain","pcfIpEndPoints":[{"ipv4Address":"127.0.0.13","port":7777}],"snssai":{"sst":1},"suppFeat":"2"}
+===================
+
+
+
+===================
+319.	SMF 4 -> UPF 7
+-> [ PFCP Session Establishment Request ]
+<- [ PFCP Session Establishment Response ]
+===================
+
+
+
+===================
+324.	SMF 4 -> AMF 5
+-> POST /namf-comm/v1/ue-contexts/imsi-001010000000001/n1-n2-messages
+{"n1MessageContainer":{"n1MessageClass":"SM","n1MessageContent":{"contentId":"5gnas-sm"}},"n2InfoContainer":{"n2InformationClass":"SM","smInfo":{"pduSessionId":1,"n2InfoContent":{"ngapIeType":"PDU_RES_SETUP_REQ","ngapData":{"contentId":"ngap-sm"}}}},"pduSessionId":1}
+<- 200 OK
+{"cause":"N1_N2_TRANSFER_INITIATED"}
+===================
+
+
+
+===================
+344.	SMF 4 -> UPF 7
+-> [ PFCP Session Modification Request ]
+<- [ PFCP Session Modification Response ]
+
+361.	UPF 7 -> SMF 4
+-> [ PFCP Heartbeat Request ]
+<- [ PFCP Heartbeat Response ]
+
+363.	SMF 4 -> UPF 7
+-> [ PFCP Heartbeat Request ]
+<- [ PFCP Heartbeat Response ]
+===================
+
+# CERTIFICATE SERIAL NOs.
+amf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869AD
+ausf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869AE
+bsf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869AF
+nrf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869B2
+nssf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869B3
+pcf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869B4
+scp.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869B6
+smf.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869BA
+udm.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869BB
+udr.crt -> serial=4E610B857D02C8F2160FA7486F818F576E6869BC
+
+# NFs IPs
+127.0.0.5 amf.localdomain
+127.0.0.11 ausf.localdomain
+127.0.0.15 bsf.localdomain
+127.0.0.10 nrf.localdomain
+127.0.0.14 nssf.localdomain
+127.0.0.13 pcf.localdomain
+127.0.0.200 scp.localdomain
+127.0.0.4 smf.localdomain
+127.0.0.12 udm.localdomain
+127.0.0.20 udr.localdomain
+127.0.0.7 upf.localdomain
