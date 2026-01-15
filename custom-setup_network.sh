@@ -1,51 +1,92 @@
 #!/bin/bash
+set -u
 
 # force execute as sudo
 if [ "$(id -u)" -ne 0 ]; then
     exec sudo "$0" "$@"
 fi
 
-# remove ogstun if already exists
-if ip link show ogstun > /dev/null 2>&1; then
-    ip link set ogstun down
-    ip tuntap del name ogstun mode tun
+# check if command exists
+have() { command -v "$1" >/dev/null 2>&1; }
+
+warn_missing() {
+  echo "[WARN] '$1' not found, skipping."
+}
+
+# --- remove ogstun if already exists
+if have ip && ip link show ogstun > /dev/null 2>&1; then
+    ip link set ogstun down || true
+    ip tuntap del name ogstun mode tun || true
 fi
 
-# remove rules if they already exist
-iptables -t nat -D POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE 2>/dev/null
-ip6tables -t nat -D POSTROUTING -s 2001:db8:cafe::/48 ! -o ogstun -j MASQUERADE 2>/dev/null
+# --- create ogstun
+if ! have ip; then
+  echo "[ERROR] 'ip' command not found (iproute2 is missing). Unable to handle ogstun."
+  exit 1
+fi
 
-# create ogstun
-ip tuntap add name ogstun mode tun
-ip addr add 10.45.0.1/16 dev ogstun
-ip addr add 2001:db8:cafe::1/48 dev ogstun
-ip link set ogstun up
+if ! ip tuntap add name ogstun mode tun 2>/dev/null; then
+  echo "[ERROR] Unable to create a TUN interface (ogstun)."
+  echo "        If you are on WSL, TUN/TAP is not supported."
+  exit 1
+fi
 
-# show interfaces
+ip addr add 10.45.0.1/16 dev ogstun || true
+ip addr add 2001:db8:cafe::1/48 dev ogstun || true
+ip link set ogstun up || true
+
+# --- show interfaces (NO ifconfig)
 echo "----------------------------------"
-ifconfig -a
+ip -br a || ip a || true
 
-# enable port forw
+# --- enable forwarding
 echo "----------------------------------"
-sysctl -w net.ipv4.ip_forward=1
-sysctl -w net.ipv6.conf.all.forwarding=1
+sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
+sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null 2>&1 || true
+echo "[INFO] Forwarding enabled."
 
-# nat setting
-iptables -t nat -A POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE
-ip6tables -t nat -A POSTROUTING -s 2001:db8:cafe::/48 ! -o ogstun -j MASQUERADE
+# --- NAT setting
+# remove rules if they already exist (best-effort)
+if have iptables; then
+iptables -t nat -D POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE 2>/dev/null || true
+else
+warn_missing iptables
+fi
+
+if have ip6tables; then
+ip6tables -t nat -D POSTROUTING -s 2001:db8:cafe::/48 ! -o ogstun -j MASQUERADE 2>/dev/null || true
+else
+warn_missing ip6tables
+fi
+
+# add NAT rules (best-effort)
+if have iptables; then
+iptables -t nat -A POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE || true
+fi
+if have ip6tables; then
+ip6tables -t nat -A POSTROUTING -s 2001:db8:cafe::/48 ! -o ogstun -j MASQUERADE || true
+fi
 
 # print debug
 echo "----------------------------------"
 echo "[INFO] IPv4 NAT rules:"
-iptables -t nat -L POSTROUTING -n -v | grep 10.45.0.0/16
+if have iptables; then
+iptables -t nat -L POSTROUTING -n -v 2>/dev/null | grep 10.45.0.0/16 || true
+fi
 
 echo "[INFO] IPv6 NAT rules:"
-ip6tables -t nat -L POSTROUTING -n -v | grep 2001:db8:cafe::
+if have ip6tables; then
+ip6tables -t nat -L POSTROUTING -n -v 2>/dev/null | grep "2001:db8:cafe::" || true
+fi
 
 echo "----------------------------------"
-ufw status
+if have ufw; then
+ufw status || true
+else
+warn_missing ufw
+fi
 
-# --- add alias to os file
+# --- add alias to hosts file
 HOSTS_FILE="/etc/hosts"
 
 add_host_entry() {
@@ -54,11 +95,10 @@ add_host_entry() {
 
     if ! grep -qE "^$ip[[:space:]]+$alias(\s|$)" "$HOSTS_FILE"; then
         echo "$ip $alias" >> "$HOSTS_FILE"
-        echo "[INFO] Aggiunto alias $alias per $ip in $HOSTS_FILE"
+        echo "[INFO] Added $alias alias for $ip in $HOSTS_FILE"
     fi
 }
 
-# alias for nf
 add_host_entry 127.0.0.5 amf.localdomain
 add_host_entry 127.0.0.11 ausf.localdomain
 add_host_entry 127.0.0.15 bsf.localdomain
