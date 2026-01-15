@@ -19,7 +19,7 @@ upf:
 #        - address: 127.0.0.4
   gtpu:
     server:
-      - address: ADDRESS_PLACEHOLDER
+      - address: 192.168.30.158
   session:
     - subnet: 10.45.0.0/16
       gateway: 10.45.0.1
