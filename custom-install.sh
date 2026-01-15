@@ -50,7 +50,7 @@ wait_for_apt_locks() {
 
 safe_apt_install() {
     wait_for_apt_locks
-    sudo apt-get install -y --no-install-recommends "$@"
+    sudo apt-get install -y "$@"
 }
 
 safe_apt_update() {
