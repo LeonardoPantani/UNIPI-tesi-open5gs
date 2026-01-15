@@ -132,8 +132,7 @@ echo "=== [1/10] Checking MongoDB installation ==="
 
 if ! command -v mongod &>/dev/null; then
     if ask_confirm "[!] MongoDB not detected. Install it?"; then
-        safe_apt_update
-        safe_apt_install curl gnupg
+        install_missing_libs "curl gnupg"
 
         # Detect OS version logic...
         if [ -f /etc/os-release ]; then . /etc/os-release; fi
@@ -174,8 +173,7 @@ if ! dpkg -s "$idn_pkg" &>/dev/null; then missing_open5gs="$missing_open5gs $idn
 if [ -n "$missing_open5gs" ]; then
     echo "[!] Missing: $missing_open5gs"
     if ask_confirm "Install missing Open5GS dependencies?"; then
-        safe_apt_update
-        safe_apt_install "$missing_open5gs"
+        install_missing_libs "$missing_open5gs"
     else
         echo "[!] Cannot continue."
         exit 1
