@@ -36,7 +36,7 @@
     {
       "label": "Terminate Open5GS",
       "type": "shell",
-      "command": "sudo pkill -9 -f 'open5gs*'; pkill -f 'npm run dev'; pkill -f 'mongosh'",
+      "command": "sudo ./custom-killall.sh",
       "presentation": {
         "close": true
       }
