@@ -45,7 +45,7 @@ amf:
 #         - uri: https://127.0.0.200:7777
   ngap:
     server:
-      - address: 192.168.30.158
+      - address: ADDRESS_PLACEHOLDER
   metrics:
     # server:
     #   - address: amf.localdomain
