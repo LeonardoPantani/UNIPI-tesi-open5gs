@@ -58,6 +58,16 @@ safe_apt_update() {
     sudo apt-get update -y
 }
 
+ask_confirm_always() {
+    local prompt="$1"
+    read -rp "$prompt [y/N]: " ans
+    if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 ask_confirm() {
     local prompt="$1"
     
@@ -259,67 +269,83 @@ fi
 
 cd "$BASE_DIR"
 
-# ========== CONFIGURE gNB CONNECTION ADDRESS ==========
-echo
-echo "=== [7/10] gNB Connection Configuration ==="
-mapfile -t files_found < <(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true)
-GNB_CONFIGURED=false
-
-if [ "${#files_found[@]}" -gt 0 ]; then
-    if [ "$TRUST_MODE" = true ]; then
-         echo "> TRUST MODE: Skipping gNB address configuration (manual step required later)."
-    else
-        read -rp "> Enter gNB IP (or 'n' to skip): " gnb_addr
-        if [[ "$gnb_addr" != "n" && -n "$gnb_addr" ]]; then
-             for file in "${files_found[@]}"; do
-                sed -i "s|ADDRESS_PLACEHOLDER|$gnb_addr|g" "$file"
-             done
-             echo "> Config updated."
-             GNB_CONFIGURED=true
-        fi
-    fi
-else
-    echo "> No configuration files with 'ADDRESS_PLACEHOLDER' found."
-    GNB_CONFIGURED=true 
-fi
-
-# ========== OPEN5GS BUILD ==========
-echo
-echo "=== [8/10] Building Open5GS ==="
-if [ ! -d "$INSTALL_ROOT/bin" ]; then
-    if ask_confirm "Build Open5GS now?"; then
-        if [ -f ./custom-env.sh ]; then
-            source ./custom-env.sh
-        fi
-        meson setup build --prefix="$PWD/install"
-        cd build
-        ninja -j"$NPROC"
-        ninja install
-        cd ..
-    fi
-else
-    echo "> Open5GS already built."
-fi
-
 # ========== NETWORK & SUBSCRIBERS ==========
 echo
-echo "=== [9/10] Network Setup ==="
+echo "=== [7/10] Network Setup ==="
 if ask_confirm "Setup network (firewall/nat)?"; then
     [ -x "./custom-setup_network.sh" ] && ./custom-setup_network.sh
 fi
 
 echo
-echo "=== [10/10] Add Subscribers ==="
+echo "=== [8/10] Add Subscribers ==="
 if ask_confirm "Add default subscribers to MongoDB?"; then
     [ -x "./custom-addsubscribers.sh" ] && ./custom-addsubscribers.sh
 fi
 
+cd "$BASE_DIR"
+
+# ========== CONFIGURE gNB CONNECTION ADDRESS ==========
+echo
+echo "=== [9/10] gNB Connection Configuration ==="
+
+mapfile -t files_found < <(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true)
+if [ "${#files_found[@]}" -eq 0 ]; then
+    echo "> No configuration files with 'ADDRESS_PLACEHOLDER' found."
+else
+    if ask_confirm_always "Replace ADDRESS_PLACEHOLDER in Open5GS config templates now?"; then
+        while true; do
+            read -rp "> Enter gNB IP (or 'n' to skip): " gnb_addr
+
+            if [[ "$gnb_addr" == "n" ]]; then
+                echo "> Skipped."
+                break
+            fi
+
+            if [[ -n "$gnb_addr" ]]; then
+                for file in "${files_found[@]}"; do
+                    sed -i "s|ADDRESS_PLACEHOLDER|$gnb_addr|g" "$file"
+                done
+                echo "> Config updated."
+                break
+            fi
+
+            echo "[!] Empty input. Please enter an IP or 'n' to skip."
+        done
+    else
+        echo "> Skipping gNB address configuration."
+    fi
+fi
+
+# ========== OPEN5GS BUILD ==========
+echo
+echo "=== [10/10] Building Open5GS ==="
+
+mapfile -t files_found < <(grep -l "ADDRESS_PLACEHOLDER" ./configs/open5gs/*.yaml.in 2>/dev/null || true)
+if [ "${#files_found[@]}" -ne 0 ]; then
+    echo "[!] Cannot build: ADDRESS_PLACEHOLDER still present in configuration files."
+    echo "    Replace it first, then re-run the build step."
+    exit 1
+fi
+
+if ! ask_confirm_always "Build Open5GS now?"; then
+    echo "> Skipping Open5GS build."
+    exit 0
+fi
+
+if [ -f ./custom-env.sh ]; then
+    source ./custom-env.sh
+fi
+
+if [ ! -d build ]; then
+    meson setup build --prefix="$PWD/install"
+else
+    meson setup build --prefix="$PWD/install" --reconfigure
+fi
+
+cd build
+ninja -j"$NPROC"
+ninja install
+cd ..
+
 echo
 echo "( ˶ˆᗜˆ˵ ) Build process completed successfully!"
-if [ "$GNB_CONFIGURED" = false ]; then
-    echo "-----------------------------------------------------------------------"
-    echo " [!] IMPORTANT:"
-    echo "     Replace 'ADDRESS_PLACEHOLDER' in Open5GS configuration files"
-    echo "     with the real gNB IP address manually."
-    echo "-----------------------------------------------------------------------"
-fi
