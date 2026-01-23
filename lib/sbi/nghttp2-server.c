@@ -338,10 +338,9 @@ static void tls_msg_cb(int write_p, int version, int content_type,
             break;
     }
     
-    ogs_info("[TLS-MSG] %s %s at %.3f ms",
+    ogs_info("[TLS-MSG] %s %s",
             write_p ? "sent" : "recv",
-            ht_name,
-            t);
+            ht_name);
     #endif
 }
 // --- ending changed block
@@ -1188,6 +1187,7 @@ static void accept_handler(short when, ogs_socket_t fd, void *data)
         // --- starting changed block
         double t1 = now_ms();
         fprintf(stdout, "hshake,%.3f,ms\n", t1-t0);
+        fflush(stdout);
         // --- ending changed block
         if (err <= 0) {
             ogs_error("SSL_accept failed [%s]", ERR_error_string(ERR_get_error(), NULL));
