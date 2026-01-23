@@ -21,8 +21,6 @@ def _analyse_logs(log_dir):
     re_encap = re.compile(r"^encap,([\d.]+),ms")
     re_decap = re.compile(r"^decap,([\d.]+),ms")
     re_hshake = re.compile(r"^hshake,([\d.]+),ms")
-    re_ch_snd_sh_rcv = re.compile(r"^ch_snd-sh_rcv,([\d.]+),ms")
-    re_ch_rcv_sh_snd = re.compile(r"^ch_rcv-sh_snd,([\d.]+),ms")
     re_sign = re.compile(r"^sign,([\d.]+),ms")
     re_verify = re.compile(r"^verify,([\d.]+),ms")
 
@@ -30,8 +28,6 @@ def _analyse_logs(log_dir):
     encaps_values = []
     decaps_values = []
     handshake_values = []
-    ch_snd_sh_rcv_values = []
-    ch_rcv_sh_snd_values = []
     sign_values = []
     verify_values = []
 
@@ -70,14 +66,6 @@ def _analyse_logs(log_dir):
                         add_if_nonzero(handshake_values, m)
                         continue
 
-                    if m := re_ch_snd_sh_rcv.match(line):
-                        add_if_nonzero(ch_snd_sh_rcv_values, m)
-                        continue
-
-                    if m := re_ch_rcv_sh_snd.match(line):
-                        add_if_nonzero(ch_rcv_sh_snd_values, m)
-                        continue
-
                     if m := re_sign.match(line):
                         add_if_nonzero(sign_values, m)
                         continue
@@ -110,12 +98,11 @@ def _analyse_logs(log_dir):
         return med
 
     print("-" * 130)
-    print_stat("GenKey", genkey_values)
+    print_stat("Keypair", genkey_values)
     print_stat("Encap", encaps_values)
     print_stat("Decap", decaps_values)
     print_stat("Sign", sign_values)
     print_stat("Verify", verify_values)
-    print_stat("ch_rcv-sh_snd", ch_rcv_sh_snd_values)
     print_stat("Handshake", handshake_values)
     print("-" * 130)
 
