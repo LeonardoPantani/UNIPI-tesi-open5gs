@@ -5,7 +5,7 @@ import argparse
 import subprocess
 
 CGROUP_PATH = os.path.join("/sys/fs/cgroup", "open5gs_monitor")
-OUTPUT_DIR = "measurements_results/server_metrics/performance/uereg/only_one"
+OUTPUT_DIR = "measurements_results/server_metrics/performance/uereg/only_one_batch/nosr"
 NUM_EXPECTED_PROCESSES = 13
 SAMPLE_INTERVAL = 0.05
 PROCESSES_START_TIMEOUT = 20
