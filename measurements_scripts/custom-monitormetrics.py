@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import os
-import sys
 import time
 import argparse
 import subprocess
 
 CGROUP_PATH = os.path.join("/sys/fs/cgroup", "open5gs_monitor")
-OUTPUT_DIR = "measurements_results/server_metrics/uereg/batch"
+OUTPUT_DIR = "measurements_results/server_metrics/performance/uereg/only_one"
 NUM_EXPECTED_PROCESSES = 13
 SAMPLE_INTERVAL = 0.1
 PROCESSES_START_TIMEOUT = 20
@@ -96,10 +95,20 @@ def main():
     duration_sec = args.time
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    filepath = os.path.join(
-        OUTPUT_DIR,
-        f"servermetrics_{args.MODE}_usage_{args.ALG_TYPE}_{args.SIG_TYPE}.csv",
-    )
+
+    base_filename = f"servermetrics_{args.MODE}_usage_{args.ALG_TYPE}_{args.SIG_TYPE}"
+    extension = ".csv"
+    filepath = os.path.join(OUTPUT_DIR, f"{base_filename}{extension}")
+
+    # add _2, _3 to files if already exist
+    if os.path.exists(filepath):
+        counter = 2
+        while True:
+            new_filepath = os.path.join(OUTPUT_DIR, f"{base_filename}_{counter}{extension}")
+            if not os.path.exists(new_filepath):
+                filepath = new_filepath
+                break
+            counter += 1
 
     print("> Waiting for Open5GS processes to start...")
     start = time.time()

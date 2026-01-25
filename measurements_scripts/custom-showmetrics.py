@@ -3,10 +3,11 @@ import csv
 import statistics
 import argparse
 import os
+import numpy as np
+from scipy import stats
 from pathlib import Path
 
 REQUIRED_COLS = {"timestamp_ms", "cpu_usage_usec", "cpu_percent", "mem_bytes"}
-
 
 def _compute_stats(values):
     s = sorted(values)
@@ -20,7 +21,6 @@ def _compute_stats(values):
         "p99": s[int(0.99 * (len(s) - 1))],
     }
 
-
 def analyse_file(file_path: Path):
     try:
         with file_path.open("r", encoding="utf-8") as f:
@@ -28,22 +28,21 @@ def analyse_file(file_path: Path):
 
             if not reader.fieldnames or not REQUIRED_COLS.issubset(reader.fieldnames):
                 print(f"[!] Skipping {file_path.name}: missing columns {REQUIRED_COLS}")
-                return
+                return None
 
             data = list(reader)
             if not data:
                 print(f"[!] {file_path.name}: empty or no data file.")
-                return
+                return None
 
             try:
                 cpus = [float(r["cpu_percent"]) for r in data]
                 mems = [int(r["mem_bytes"]) / 1048576 for r in data]
                 cpu_usage = [int(r["cpu_usage_usec"]) for r in data]
-
                 cpu_active = [x for x in cpus if x > 0]
             except ValueError:
                 print(f"[!] {file_path.name}: Data conversion error.")
-                return
+                return None
 
             # calculate cpu avg real
             try:
@@ -82,10 +81,13 @@ def analyse_file(file_path: Path):
                 f"Max {mem_stats['max']:7.3f} | Std {mem_stats['std']:7.3f} | "
                 f"p95 {mem_stats['p95']:7.3f} | p99 {mem_stats['p99']:7.3f}"
             )
+            
+            # returning values for recap
+            return cpu_avg_real, mem_stats['avg']
 
     except Exception as e:
         print(f"[!] {file_path.name}: Unknown error: {e}")
-
+        return None
 
 def main():
     parser = argparse.ArgumentParser(
@@ -100,12 +102,35 @@ def main():
     )
     args = parser.parse_args()
 
+    all_cpu_real = []
+    all_mem_avg = []
+
     for file_path in args.files:
         if not file_path.exists():
             print(f"[!] File not found: {file_path}")
             continue
-        analyse_file(file_path)
+        
+        result = analyse_file(file_path)
+        if result:
+            all_cpu_real.append(result[0])
+            all_mem_avg.append(result[1])
 
+    n = len(all_cpu_real)
+    if n >= 2:
+        print("\n" + "="*85)
+        print(f"{'RECAP | Confidence 95%':^85}")
+        print("="*85)
+        print(f"{'Metric':<15} | {'Average':<12} | {'Coeff (+/-)':<15} | {'Interval [Min, Max]':<25}")
+        print("-" * 85)
+
+        for name, data in [("CPU (real)", all_cpu_real), ("MEM (MB)", all_mem_avg)]:
+            mean = np.mean(data)
+            # stats.sem standard error; stats.t.ppf critical value t
+            margin = stats.sem(data) * stats.t.ppf((1 + 0.95) / 2., n - 1)
+            
+            print(f"{name:<15} | {mean:<12.4f} | {margin:<15.4f} | [{mean-margin:.4f}, {mean+margin:.4f}]")
+        
+        print("="*85)
 
 if __name__ == "__main__":
     main()

@@ -12,3 +12,5 @@ webui/.next
 .cache
 
 measurements_results/appendix_content/**/*.log
+
+.venv
