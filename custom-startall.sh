@@ -2,6 +2,8 @@
 
 ./custom-killall.sh
 
+sleep 0.5
+
 rm -f install/var/log/open5gs/*.log
 
 rm -rf ./install/bin && rm -rf ./install/lib && source ./custom-env.sh && meson setup build --prefix=$PWD/install && cd build && ninja -j$(nproc) && ninja install

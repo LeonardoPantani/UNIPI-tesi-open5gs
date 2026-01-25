@@ -1,20 +1,33 @@
 #!/bin/bash
 
+CLEAN=false
+
+while getopts ":c" opt; do
+  case "$opt" in
+    c) CLEAN=true ;;
+    *)
+      echo "Usage: $0 [-c] <dst_folder> <sig_alg>"
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
 if [ $# -ne 2 ]; then
-    echo "Usage: $0 <dst_folder> <sig_alg>"
-    exit 1
+  echo "Usage: $0 [-c] <dst_folder> <sig_alg>"
+  exit 1
 fi
 
 DST_FOLDER="$1"
 SIGALG="$2"
-
-if [[ ! "$DST_FOLDER" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-    echo "[!] Invalid folder name: $DST_FOLDER"
-    exit 1
-fi
-
 TLS_DIR="./install/etc/open5gs/$DST_FOLDER"
 NFS=(amf ausf bsf hss mme nrf nssf pcf pcrf scp sepp1 sepp2 sepp3 smf udm udr)
+
+# --- Clean if requested ---
+if $CLEAN && [ -d "$TLS_DIR" ]; then
+  echo "[*] Cleaning directory: $TLS_DIR"
+  rm -rf "$TLS_DIR"
+fi
 
 mkdir -p "$TLS_DIR"
 echo "> Target dir: $TLS_DIR"

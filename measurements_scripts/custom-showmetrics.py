@@ -120,7 +120,7 @@ def main():
         print("\n" + "="*85)
         print(f"{'RECAP | Confidence 95%':^85}")
         print("="*85)
-        print(f"{'Metric':<15} | {'Average':<12} | {'Coeff (+/-)':<15} | {'Interval [Min, Max]':<25}")
+        print(f"{'Metric':<15} | {'Average':<12} | {'Coeff (+/-)':<15} | {'Interval [Min; Max]':<25}")
         print("-" * 85)
 
         for name, data in [("CPU (real)", all_cpu_real), ("MEM (MB)", all_mem_avg)]:
@@ -128,7 +128,7 @@ def main():
             # stats.sem standard error; stats.t.ppf critical value t
             margin = stats.sem(data) * stats.t.ppf((1 + 0.95) / 2., n - 1)
             
-            print(f"{name:<15} | {mean:<12.4f} | {margin:<15.4f} | [{mean-margin:.4f}, {mean+margin:.4f}]")
+            print(f"{name:<15}   {mean:<12.4f} , {margin:<15.4f} , [{mean-margin:.4f}; {mean+margin:.4f}]")
         
         print("="*85)
 
