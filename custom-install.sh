@@ -144,14 +144,14 @@ if ! command -v mongod &>/dev/null; then
     if ask_confirm "[!] MongoDB not detected. Install it?"; then
         install_missing_libs "curl gnupg"
 
-        # Detect OS version logic...
         if [ -f /etc/os-release ]; then . /etc/os-release; fi
         os_version=${VERSION_ID%%.*}
         case $os_version in
-            20) codename="focal" ;;
-            22) codename="jammy" ;;
-            24) codename="noble" ;;
-            *)  codename="jammy" ;;
+            20) codename="focal"    ;;
+            22) codename="jammy"    ;;
+            24) codename="noble"    ;;
+            26) codename="resolute" ;;
+            *)  codename="jammy"    ;;
         esac
 
         curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor --yes
