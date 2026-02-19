@@ -1,44 +1,123 @@
-<p align="center"><a href="https://open5gs.org" target="_blank" rel="noopener noreferrer"><img width="100" src="https://open5gs.org/assets/img/open5gs-logo-only.png" alt="Open5GS logo"></a></p>
+# UNIPI – Post-Quantum Open5GS Experimental Fork
 
-## Getting Started
+This repository is a research fork of Open5GS developed for the Master's Thesis:
 
-Please follow the [documentation](https://open5gs.org/open5gs/docs/) at [open5gs.org](https://open5gs.org/)!
+**Post-Quantum Cryptography in 5G Core Networks: Implementation and Cost Analysis in Open5GS**
 
-## Sponsors
+The objective of this fork is not only to integrate Post-Quantum Cryptography into Open5GS, but to provide a fully automated and reproducible benchmarking environment for evaluating PQC algorithms impact on links between NFs of the 5G SA Architecture.
 
-If you find Open5GS useful for work, please consider supporting this Open Source project by [Becoming a sponsor](https://github.com/sponsors/acetcom). To manage the funding transactions transparently, you can donate through [OpenCollective](https://opencollective.com/open5gs).
 
-<p align="center">
-  <h3 align="center">Special Sponsor</h3>
-</p>
+# Overview
 
-<p align="center">
-  <a target="_blank" href="https://mobi.com">
-  <img alt="special sponsor mobi" src="https://open5gs.org/assets/img/mobi-open5GS.png" width="400">
-  </a>
-</p>
+This fork extends Open5GS with:
 
-<p align="center">
-  <a target="_blank" href="https://open5gs.org/#sponsors">
-      <img alt="sponsors" src="https://open5gs.org/assets/img/sponsors.svg">
-  </a>
-</p>
+* Post-Quantum KEM and Digital Signature support in TLS 1.3
+* OpenSSL rebuilt with oqsprovider
+* Instrumented TLS handshake measurements
+* Automated test execution and monitoring scripts
+* Raw experimental datasets
+* Data analysis scripts
 
-## Community
+This repository therefore contains both a modified 5G Core implementation and a complete experimental framework.
 
-- Problem with Open5GS can be filed as [issues](https://github.com/open5gs/open5gs/issues) in this repository.
-- Other topics related to this project are happening on the [discussions](https://github.com/open5gs/open5gs/discussions).
-- Voice and text chat are available in Open5GS's [Discord](https://discordapp.com/) workspace. Use [this link](https://discord.gg/GreNkuc) to get started.
 
-## Contributing
+# Installation
 
-If you're contributing through a pull request to Open5GS project on GitHub, please read the [Contributor License Agreement](https://open5gs.org/open5gs/cla/) in advance.
+## custom-install.sh
 
-## License
+This script automates the full environment setup through guided steps.
 
-- Open5GS Open Source files are made available under the terms of the GNU Affero General Public License ([GNU AGPL v3.0](https://www.gnu.org/licenses/agpl-3.0.html)).
-- [Commercial licenses](https://open5gs.org/open5gs/support/) are also available from [NewPlane](https://newplane.io/) at [sales@newplane.io](mailto:sales@newplane.io).
+It performs:
 
-## Support
+* Installation of required system dependencies
+* Compilation and installation of liboqs
+* Compilation of OpenSSL with oqsprovider enabled
+* Configuration of environment variables
+* Compilation of the modified Open5GS
+* Setup of certificates and TLS configuration
 
-Technical support and customized services for Open5GS are provided by [NewPlane](https://newplane.io/) at [support@newplane.io](mailto:support@newplane.io).
+---
+
+# Source Code Modifications
+
+## Main Modified Files
+
+The most relevant changes are located in:
+
+* `lib/sbi/client.c`
+* `lib/sbi/nghttp2-server.c`
+
+These files were extended to:
+
+* Enable TLS 1.3 with PQC algorithms via OpenSSL + oqsprovider
+* Allow configurable KEM and signature combinations
+* Instrument TLS handshake timing
+
+## PQC Bundle Changes
+
+After completing the installation, move the contents of the `modified_pqc_bundle_files/pqc-bundle` folder into `install` folder to enable **primitive time measurements**. When prompted to replace existing files, confirm the overwrite.
+
+
+# measurements_scripts Directory
+
+The `measurements_scripts/` directory contains the automation layer used to execute all experiments described in the thesis.
+
+The scripts allow:
+
+* Running single UE registration experiments
+* Running batch UE registration experiments
+* Selecting classical or PQC algorithm combinations
+* Enabling/disabling TLS session resumption
+* Automatically collecting logs and metrics
+* Structuring output data into reproducible folders
+
+These scripts remove the need for manual orchestration of Network Functions and UERANSIM instances.
+
+# measurements_results Directory
+
+The `measurements_results/` directory contains:
+
+* Raw logs from all experimental campaigns
+* Structured CSV measurement files
+* Intermediate processed datasets
+* Final aggregated results used in thesis figures
+
+All data used to produce thesis tables and graphs is included for transparency and reproducibility.
+
+# Data Analysis
+
+Python scripts included in the repository allow:
+
+* Parsing raw Open5GS logs
+* Extracting handshake times
+* Computing statistical aggregates
+
+
+# Reproducibility
+
+This fork was designed with reproducibility as a primary goal. A researcher can:
+
+1. Run `custom-install.sh`
+2. Compile the modified Open5GS
+3. Execute the measurement scripts
+4. Collect structured results
+5. Reproduce the full performance evaluation
+
+The repository provides:
+
+* A modified 5G Core implementation
+* An automated benchmarking framework
+* Complete raw datasets
+* Analysis tools
+
+
+# Scope
+
+This repository is intended for:
+
+* Researchers evaluating Post-Quantum Cryptography
+* Performance benchmarking of TLS 1.3 with PQC
+* 5G Core security experimentation
+* Experimental validation of PQC in Service-Based Interfaces
+
+It is not intended as a production-ready Open5GS replacement.
